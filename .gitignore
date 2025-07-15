@@ -1,0 +1,25 @@
+# Build output folder
+/build/
+
+# Common binary and intermediate file types
+*.o
+*.obj
+*.elf
+*.hex
+*.bin
+*.map
+*.lst
+*.d
+
+# IDE-specific settings (e.g., VS Code, Eclipse)
+.vscode/
+.settings/
+.cproject
+.project
+
+# Log files
+*.log
+
+# System files
+Thumbs.db
+.DS_Store
