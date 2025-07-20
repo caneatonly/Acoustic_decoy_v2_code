@@ -37,6 +37,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 uint8_t rx_byte;
+F32 x = 1.1f;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -97,21 +98,19 @@ int main(void)
   //打开IMU接收中断
   HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
   Dbp("--- IM948 HAL test start FirmwareVer:%s ---\r\n", "V1.05");
+  int i = 40000000; while (i--);// 延时一下让传感器上电准备完毕，传感器上电后需要初始化完毕后才会接收指令的
 
-  // 初始化电调
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 2000);
-  HAL_Delay(500);
-  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 1500);
-  HAL_Delay(500);
+  // // 初始化电调
+  // HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+  // __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 2000);
+  // HAL_Delay(500);
+  // __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 1500);
+  // HAL_Delay(500);
   
 
   Cmd_03();// 1 唤醒传感器
-  HAL_Delay(100); // 短暂延时等待响应
   Cmd_12(5, 255, 0,  0, 3, 2, 2, 4, 9, 0xFFF);// 2 设置设备参数(内容1)
-  HAL_Delay(100); // 短暂延时等待响应
   Cmd_19();// 开启数据主动上报
-  HAL_Delay(100); // 短暂延时等待响应
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -119,7 +118,7 @@ int main(void)
   while (1)
   {
     U8 rxByte;
-    if (UartFifo.Cnt > 0) // 将 while 改为 if
+    while (UartFifo.Cnt > 0)
     {// 从fifo获取串口发来的数据
         rxByte = UartFifo.RxBuf[UartFifo.Out];
         if (++UartFifo.Out >= FifoSize)
@@ -129,16 +128,14 @@ int main(void)
         __disable_irq();// 关中断
         --UartFifo.Cnt;
         __enable_irq();// 开中断
-
         // 移植 每收到1字节数据都填入该函数，当抓取到有效的数据包就会回调进入 Cmd_RxUnpack(U8 *buf, U8 DLen) 函数处理
-        Cmd_GetPkt(rxByte); // 移除 if 和 break
+        if (Cmd_GetPkt(rxByte)){break;}
     }
-    // 添加 FIFO 计数和角度值的打印，用于调试
-    Dbp("FifoCnt:%d, AngleX:%.2f, AngleY:%.2f, AngleZ:%.2f\r\n", UartFifo.Cnt, AngleX, AngleY, AngleZ);
-    HAL_Delay(100);
+    // HAL_Delay(100);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    printf("AngleX=%.2f,AngleY=%.2f,AngleZ=%.2f\r\n", AngleX, AngleY, AngleZ); // 输出浮点数
   }
   /* USER CODE END 3 */
 }

@@ -62,6 +62,11 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined symbols
 )
+# 添加浮点数支持的链接选项
+target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
+    -u _printf_float
+    -lm
+)
 
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}

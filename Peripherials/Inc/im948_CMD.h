@@ -60,7 +60,7 @@ extern struct_UartFifo UartFifo;
 
 
 // ===============================调试信息开关====================================
-    #define __Debug  // 使用调试口输出调试信息,不使用调试信息屏蔽本句即可
+    // #define __Debug  // 使用调试口输出调试信息,不使用调试信息屏蔽本句即可
     #ifdef __Debug
         #define Dbp(...)  printf(__VA_ARGS__) // 
         extern void Dbp_U8_buf(char *sBeginInfo, char *sEndInfo, char *sFormat, const U8 *Buf, U32 Len);
