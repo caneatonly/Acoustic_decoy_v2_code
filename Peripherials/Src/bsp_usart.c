@@ -22,24 +22,7 @@ int UART_Write(uint8_t *buf, int Len)
 	return Len;
 }
 
-// 深度传感器数据处理
-void ProcessUart3Data(uint8_t *data, uint8_t length)
-{
-		
-        // 尝试手动解析
-        char *t_pos = strstr((char*)data, "T=");
-        char *d_pos = strstr((char*)data, "D=");
-        
-        if (t_pos && d_pos) {
-            temperature = atof(t_pos + 2);
-            depth = atof(d_pos + 2);
-            Dbp("Manual parse - Temperature: %.2f°C, Depth: %.2fm\r\n", temperature, depth);
-        } else {
-            Dbp("Parse failed. Raw data [%d bytes]: %s\r\n", length, data);
-        }
-}
 
-extern unsigned char Cmd_GetPkt(unsigned char byte);
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -69,7 +52,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
             // 只有当接收到有效数据时才处理
             if (uart3_rx_index > 1)
             {
-                ProcessUart3Data(uart3_rx_buffer, uart3_rx_index);
+                ProcessUart3Data(uart3_rx_buffer);
             }
             
             // 重置索引，准备接收下一个数据包

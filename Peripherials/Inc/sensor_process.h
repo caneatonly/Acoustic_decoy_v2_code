@@ -43,6 +43,7 @@ void SensorSystem_Init(void);
 void ProcessIMUData(void);
 void motorInit(void);
 void imuInit(void);
+void ProcessUart3Data(uint8_t *data);
 
 // 数据访问接口
 MS5837_Data_t* MS5837_GetData(void);
