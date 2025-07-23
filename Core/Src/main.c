@@ -104,20 +104,13 @@ int main(void)
   //打开IMU接收中断
   HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
   HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);
-  Dbp("--- IM948 HAL test start FirmwareVer:%s ---\r\n", "V1.05");
-  int i = 40000000; // 
-  while (i--);// 延时一下让传感器上电准备完毕，传感器上电后需要初始化完毕后才会接收指令的
 
-  // 初始化电调
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 2000);
-  HAL_Delay(500);
-  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 1500);
-  HAL_Delay(500);
-  
-  Cmd_03();// 1 唤醒传感器
-  Cmd_12(5, 255, 0,  0, 3, 2, 2, 4, 9, 0xFFF);// 2 设置设备参数(内容1)
-  Cmd_19();// 开启数据主动上报
+// 延时一下让传感器上电准备完毕，传感器上电后需要初始化完毕后才会接收指令的
+  int i = 40000000; 
+  while (i--);
+
+  motorInit(); // 初始化电调
+  imuInit(); // 初始化IMU
   /* USER CODE END 2 */
 
   /* Infinite loop */
