@@ -1,5 +1,5 @@
 # Build output folder
-/build/
+build/
 
 # Common binary and intermediate file types
 *.o
@@ -23,3 +23,4 @@
 # System files
 Thumbs.db
 .DS_Store
+.clangd

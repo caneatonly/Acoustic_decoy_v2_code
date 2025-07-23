@@ -26,6 +26,7 @@
 /* USER CODE BEGIN Includes */
 #include "im948_CMD.h"
 #include "bsp_usart.h"
+#include <stdint.h>
 
 /* USER CODE END Includes */
 
@@ -37,7 +38,11 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 uint8_t rx_byte;
+uint8_t uart3_rx_buffer[32];
+uint8_t uart3_rx_byte;
+uint8_t uart3_rx_index=0;
 F32 x = 1.1f;
+float temperature, depth;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -92,22 +97,24 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM2_Init();
-  MX_USART1_UART_Init();
-  MX_USART2_UART_Init();
+  MX_USART1_UART_Init();// 调试口 PA9,PA10
+  MX_USART2_UART_Init();// IMU PA2,PA3
+  MX_USART3_UART_Init();// MS5837 PB10，PB11
   /* USER CODE BEGIN 2 */
   //打开IMU接收中断
   HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
+  HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);
   Dbp("--- IM948 HAL test start FirmwareVer:%s ---\r\n", "V1.05");
-  int i = 40000000; while (i--);// 延时一下让传感器上电准备完毕，传感器上电后需要初始化完毕后才会接收指令的
+  int i = 40000000; // 
+  while (i--);// 延时一下让传感器上电准备完毕，传感器上电后需要初始化完毕后才会接收指令的
 
-  // // 初始化电调
-  // HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-  // __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 2000);
-  // HAL_Delay(500);
-  // __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 1500);
-  // HAL_Delay(500);
+  // 初始化电调
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 2000);
+  HAL_Delay(500);
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 1500);
+  HAL_Delay(500);
   
-
   Cmd_03();// 1 唤醒传感器
   Cmd_12(5, 255, 0,  0, 3, 2, 2, 4, 9, 0xFFF);// 2 设置设备参数(内容1)
   Cmd_19();// 开启数据主动上报
@@ -135,7 +142,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    printf("AngleX=%.2f,AngleY=%.2f,AngleZ=%.2f\r\n", AngleX, AngleY, AngleZ); // 输出浮点数
+    // Dbp("AngleX=%.2f,AngleY=%.2f,AngleZ=%.2f\r\n", AngleX, AngleY, AngleZ); // 输出浮点数
+
   }
   /* USER CODE END 3 */
 }
