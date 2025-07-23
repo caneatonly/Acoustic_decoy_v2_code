@@ -38,7 +38,7 @@ typedef float                  F32;
 #define CmdPacketMaxDatSizeRx 73  // 模块发来的   数据包的数据体最大长度
 #define CmdPacketMaxDatSizeTx 31  // 发送给模块的 数据包的数据体最大长度
 
-#define FifoSize 200   // 串口3的fifo大小 字节数
+#define FifoSize 200   // 串口的fifo大小 字节数
 typedef struct // 串口 Fifo缓冲区
 {
     U8 RxBuf[FifoSize];

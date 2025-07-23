@@ -52,6 +52,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     Peripherials/Src/bsp_usart.c
     Peripherials/Src/im948_CMD.c
+    Peripherials/Src/sensor_process.c
 )
 
 # Add include paths

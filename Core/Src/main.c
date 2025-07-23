@@ -27,7 +27,7 @@
 #include "im948_CMD.h"
 #include "bsp_usart.h"
 #include <stdint.h>
-
+#include "sensor_process.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -124,20 +124,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    U8 rxByte;
-    while (UartFifo.Cnt > 0)
-    {// 从fifo获取串口发来的数据
-        rxByte = UartFifo.RxBuf[UartFifo.Out];
-        if (++UartFifo.Out >= FifoSize)
-        {
-            UartFifo.Out = 0;
-        }
-        __disable_irq();// 关中断
-        --UartFifo.Cnt;
-        __enable_irq();// 开中断
-        // 移植 每收到1字节数据都填入该函数，当抓取到有效的数据包就会回调进入 Cmd_RxUnpack(U8 *buf, U8 DLen) 函数处理
-        if (Cmd_GetPkt(rxByte)){break;}
-    }
+    ProcessIMUData(); // 处理IMU数据
+
     // HAL_Delay(100);
     /* USER CODE END WHILE */
 
