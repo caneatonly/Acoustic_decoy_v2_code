@@ -14,6 +14,11 @@ PUTCHAR_PROTOTYPE
     return ch;
 }
 
+uint8_t rx_byte;
+uint8_t uart3_rx_buffer[32];
+uint8_t uart3_rx_byte;
+uint8_t uart3_rx_index=0;
+
 // 描述: 被Cmd_Write调用，用于向IMU发送数据
 // 返回: 返回发送字节数
 int UART_Write(uint8_t *buf, int Len)

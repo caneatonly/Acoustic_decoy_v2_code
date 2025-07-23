@@ -37,12 +37,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-uint8_t rx_byte;
-uint8_t uart3_rx_buffer[32];
-uint8_t uart3_rx_byte;
-uint8_t uart3_rx_index=0;
-F32 x = 1.1f;
-float temperature, depth;
+
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -105,12 +101,16 @@ int main(void)
   HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
   HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);
 
+  Dbp("Acoustic Decoy Initializing . . .\r\n");
+
 // 延时一下让传感器上电准备完毕，传感器上电后需要初始化完毕后才会接收指令的
   int i = 40000000; 
   while (i--);
 
   motorInit(); // 初始化电调
   imuInit(); // 初始化IMU
+
+  Dbp("Initialization complete. \r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
