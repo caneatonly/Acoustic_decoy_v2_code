@@ -94,9 +94,10 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM2_Init();
-  MX_USART1_UART_Init();// 调试口 PA9,PA10
-  MX_USART2_UART_Init();// IMU PA2,PA3
-  MX_USART3_UART_Init();// MS5837 PB10，PB11
+  MX_USART1_UART_Init();
+  MX_USART2_UART_Init();
+  MX_USART3_UART_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   //打开IMU接收中断
   HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
@@ -110,7 +111,6 @@ int main(void)
 
   motorInit(); // 初始化电调
   imuInit(); // 初始化IMU
-
   printf("Initialization complete. \r\n");
   /* USER CODE END 2 */
 

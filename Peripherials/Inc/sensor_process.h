@@ -48,6 +48,10 @@ void ProcessUart3Data(uint8_t *data);
 void IMU_UpdateAngle(float angleX, float angleY, float angleZ);
 void IMU_UpdateAccel(float accelX, float accelY, float accelZ);
 
+//状态灯控制函数
+void LEDstatus_on(void);
+void LEDstatus_off(void);
+
 // 数据访问接口
 MS5837_Data_t* MS5837_GetData(void);
 IMU_Data_t* IMU_GetData(void);

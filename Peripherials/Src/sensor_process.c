@@ -126,7 +126,7 @@ void ProcessUart3Data(uint8_t *data) {
       g_ms5837_data.data_valid = false;
       Dbp("MS5837 parse failed: %s\r\n", data);
     }
-  }
+}
 
 
   // IMU角度数据更新函数
@@ -147,4 +147,11 @@ void IMU_UpdateAccel(float accelX, float accelY, float accelZ)
     g_imu_data.accelZ = accelZ;
     g_imu_data.timestamp = HAL_GetTick();
     g_imu_data.data_valid = true;
+}
+
+void LEDstatus_on(void) {
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET); // PA4 LED ON
+}
+void LEDstatus_off(void) {
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET); // PA4 LED OFF
 }

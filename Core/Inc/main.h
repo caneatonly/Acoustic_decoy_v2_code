@@ -22,8 +22,6 @@
 #ifndef __MAIN_H
 #define __MAIN_H
 
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -59,6 +57,10 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define LEDstatus_Pin GPIO_PIN_4
+#define LEDstatus_GPIO_Port GPIOA
+#define Swich_Pin GPIO_PIN_5
+#define Swich_GPIO_Port GPIOA
 #define LEDtest_Pin GPIO_PIN_8
 #define LEDtest_GPIO_Port GPIOA
 
