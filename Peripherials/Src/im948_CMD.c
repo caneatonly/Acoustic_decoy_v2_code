@@ -10,6 +10,7 @@
 *******************************************************************************/
 #include "im948_CMD.h"
 #include "bsp_usart.h"
+#include "sensor_process.h" 
 
 struct_UartFifo UartFifo;
 U8 targetDeviceAddress=255; // 通信地址，设为0-254指定则设备地址，设为255则不指定设备(即广播), 当需要使用485总线形式通信时通过该参数选中要操作的设备，若仅仅是串口1对1通信设为广播地址255即可
@@ -716,7 +717,7 @@ void Cmd_51(U8 isReportCycle)
     Cmd_PackAndTx(buf, 3);
 }
 
-F32 AngleX,AngleY,AngleZ;// 从Cmd_RxUnpack中获取到的欧拉角数据更新到全局变量以便用户自己的业务逻辑使用, 若还需要其它数据，可参考进行增加即可
+
 U8 isNewData=0;// 1=更新了新的数据到全局变量里了
 /**
  * 解析接收到报文的数据体并处理，用户根据项目需求，关注里面对应的内容即可--------------------
@@ -790,6 +791,7 @@ static void Cmd_RxUnpack(U8 *buf, U8 DLen)
             tmpY = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\taY: %.3f\r\n", tmpY); // y加速度aY
             tmpZ = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\taZ: %.3f\r\n", tmpZ); // z加速度aZ
             tmpAbs = sqrt(pow2(tmpX) + pow2(tmpY) + pow2(tmpZ)); Dbp("\ta_abs: %.3f\r\n", tmpAbs); // 3轴合成的绝对值
+
         }
         if ((ctl & 0x0002) != 0)
         {// 加速度xyz 包含了重力 使用时需*scaleAccel m/s
@@ -836,9 +838,7 @@ static void Cmd_RxUnpack(U8 *buf, U8 DLen)
             tmpX = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAngle; L += 2; Dbp("\tangleX: %.3f\r\n", tmpX); // x角度
             tmpY = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAngle; L += 2; Dbp("\tangleY: %.3f\r\n", tmpY); // y角度
             tmpZ = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAngle; L += 2; Dbp("\tangleZ: %.3f\r\n", tmpZ); // z角度
-            AngleX = tmpX;
-            AngleY = tmpY;
-            AngleZ = tmpZ;
+            IMU_UpdateAngle(tmpX, tmpY, tmpZ);
         }
         if ((ctl & 0x0080) != 0)
         {// xyz 空间位移 单位mm 转为 m
@@ -856,11 +856,12 @@ static void Cmd_RxUnpack(U8 *buf, U8 DLen)
             Dbp("\t driving: %s\r\n", (tmpU8 & 0x08)?  "yes" : "no"); // 是否在开车
         }
         if ((ctl & 0x0200) != 0)
-        {// 加速度xyz 去掉了重力 使用时需*scaleAccel m/s
+        {// NED坐标系加速度xyz 去掉了重力 使用时需*scaleAccel m/s
             tmpX = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\tasX: %.3f\r\n", tmpX); // x加速度asX
             tmpY = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\tasY: %.3f\r\n", tmpY); // y加速度asY
             tmpZ = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\tasZ: %.3f\r\n", tmpZ); // z加速度asZ
             tmpAbs = sqrt(pow2(tmpX) + pow2(tmpY) + pow2(tmpZ)); Dbp("\tas_abs: %.3f\r\n", tmpAbs); // 3轴合成的绝对值
+            IMU_UpdateAccel(tmpX, tmpY, tmpZ);
         }
         if ((ctl & 0x0400) != 0)
         {// ADC的值

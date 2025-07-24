@@ -55,7 +55,7 @@ void ProcessIMUData(void)
 {
     U8 rxByte;
     int processed_count = 0;
-    const int MAX_PROCESS_PER_LOOP = 20;  // 限制每次处理的数据量
+    const int MAX_PROCESS_PER_LOOP = 200;  // 限制每次处理的数据量
     
     // 一次性读取多个字节，减少中断操作
     while (UartFifo.Cnt > 0 && processed_count < MAX_PROCESS_PER_LOOP)
@@ -110,8 +110,14 @@ void ProcessUart3Data(uint8_t *data) {
         g_ms5837_data.depth = depth;
         g_ms5837_data.timestamp = HAL_GetTick();
         g_ms5837_data.data_valid = true;
-  
-        Dbp("MS5837 - T:%.2f°C, D:%.2fm\r\n", temp, depth);
+        
+        // 1秒输出一次
+        static uint32_t last_print_time = 0;
+        uint32_t current_time = HAL_GetTick();
+        if (current_time - last_print_time >= 1000) {
+            Dbp("MS5837 - T:%.2f°C, D:%.2fm\r\n", g_ms5837_data.temperature, g_ms5837_data.depth);
+            last_print_time = current_time;
+        }
       } else {
         g_ms5837_data.data_valid = false;
         Dbp("MS5837 data out of range\r\n");
@@ -121,3 +127,24 @@ void ProcessUart3Data(uint8_t *data) {
       Dbp("MS5837 parse failed: %s\r\n", data);
     }
   }
+
+
+  // IMU角度数据更新函数
+void IMU_UpdateAngle(float angleX, float angleY, float angleZ)
+{
+    g_imu_data.angleX = angleX;
+    g_imu_data.angleY = angleY;
+    g_imu_data.angleZ = angleZ;
+    g_imu_data.timestamp = HAL_GetTick();
+    g_imu_data.data_valid = true;
+}
+
+// IMU加速度数据更新函数
+void IMU_UpdateAccel(float accelX, float accelY, float accelZ)
+{
+    g_imu_data.accelX = accelX;
+    g_imu_data.accelY = accelY;
+    g_imu_data.accelZ = accelZ;
+    g_imu_data.timestamp = HAL_GetTick();
+    g_imu_data.data_valid = true;
+}

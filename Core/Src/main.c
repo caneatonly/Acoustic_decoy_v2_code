@@ -27,6 +27,7 @@
 #include "im948_CMD.h"
 #include "bsp_usart.h"
 #include <stdint.h>
+#include <stdio.h>
 #include "sensor_process.h"
 /* USER CODE END Includes */
 
@@ -101,7 +102,7 @@ int main(void)
   HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
   HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);
 
-  Dbp("Acoustic Decoy Initializing . . .\r\n");
+  printf("Acoustic Decoy Initializing . . .\r\n");
 
 // 延时一下让传感器上电准备完毕，传感器上电后需要初始化完毕后才会接收指令的
   int i = 40000000; 
@@ -110,7 +111,7 @@ int main(void)
   motorInit(); // 初始化电调
   imuInit(); // 初始化IMU
 
-  Dbp("Initialization complete. \r\n");
+  printf("Initialization complete. \r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -118,8 +119,15 @@ int main(void)
   while (1)
   {
     ProcessIMUData(); // 处理IMU数据
+    printf("UART FIFO - In:%d, Out:%d, Cnt:%d | ", 
+          UartFifo.In, UartFifo.Out, UartFifo.Cnt);
+    IMU_Data_t* imu = IMU_GetData();
+    printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f°C D=%.2fm\r\n", 
+          imu->angleX, imu->angleY, imu->angleZ,
+          imu->accelX, imu->accelY, imu->accelZ,
+          MS5837_GetData()->temperature, MS5837_GetData()->depth);
 
-    // HAL_Delay(100);
+    HAL_Delay(500);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

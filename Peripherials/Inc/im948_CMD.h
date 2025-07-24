@@ -60,7 +60,7 @@ extern struct_UartFifo UartFifo;
 
 
 // ===============================调试信息开关====================================
-    #define __Debug  // 使用调试口输出调试信息,不使用调试信息屏蔽本句即可
+    // #define __Debug  // 使用调试口输出调试信息,不使用调试信息屏蔽本句即可
     #ifdef __Debug
         #define Dbp(...)  printf(__VA_ARGS__) // 
         extern void Dbp_U8_buf(char *sBeginInfo, char *sEndInfo, char *sFormat, const U8 *Buf, U32 Len);
@@ -78,9 +78,6 @@ extern struct_UartFifo UartFifo;
      */
     extern U8 Cmd_GetPkt(U8 byte);
 
-    // 当接收到有效数据包，会回调进入到 Cmd_RxUnpack(U8 *buf, U8 DLen) 函数里，用户在该函数里处理数据即可，如把欧拉角赋值给下一行的全局变量
-    extern F32 AngleX,AngleY,AngleZ;// 从Cmd_RxUnpack中获取到的欧拉角数据更新到全局变量以便用户自己的业务逻辑使用, 若还需要其它数据，可参考进行增加即可
-    extern U8 isNewData;// 1=更新了新的数据到全局变量里了
 
     extern void im948_test(void); // 测试示例 功能是监听调试串口发来的操作指令，然后对模块进行操作，若需要，则放在循环里即可
 
