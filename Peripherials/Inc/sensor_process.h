@@ -52,6 +52,14 @@ void IMU_UpdateAccel(float accelX, float accelY, float accelZ);
 void LEDstatus_on(void);
 void LEDstatus_off(void);
 
+// 整流罩控制函数
+void fairing_release(void);
+void fairing_retract(void);
+
+// 电磁阀控制函数
+void valve_open(void);
+void valve_close(void);
+
 // 数据访问接口
 MS5837_Data_t* MS5837_GetData(void);
 IMU_Data_t* IMU_GetData(void);

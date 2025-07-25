@@ -1,6 +1,7 @@
 #include "sensor_process.h"
 #include "bsp_usart.h"
 #include "im948_CMD.h"
+#include "stm32f1xx_hal.h"
 #include "tim.h"
 
 // 全局数据实例
@@ -154,4 +155,20 @@ void LEDstatus_on(void) {
 }
 void LEDstatus_off(void) {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET); // PA4 LED OFF
+}
+
+void fairing_release(void){
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
+    HAL_Delay(100); // 等待100ms以确保释放完成
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1000);
+}
+void fairing_retract(void){
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1000);
+}
+
+void valve_open(void) {
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 2000);
+}
+void valve_close(void) {
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 1000);
 }

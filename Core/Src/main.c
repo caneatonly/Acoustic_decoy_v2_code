@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stm32f1xx_hal_gpio.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -100,18 +101,24 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   //打开IMU接收中断
-  HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
-  HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);
+  HAL_UART_Receive_IT(&huart1, &rx_byte_debug, 1); //Debug PA9,PA10
+  HAL_UART_Receive_IT(&huart2, &rx_byte, 1);// IMU PA2,PA3
+  HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);// MS5837 PB10,PB11
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // 启动PWM输出 TIM3_CH1 PA6
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2); // 启动PWM输出 TIM3_CH2 PA7
 
   printf("Acoustic Decoy Initializing . . .\r\n");
 
-// 延时一下让传感器上电准备完毕，传感器上电后需要初始化完毕后才会接收指令的
+// 延时一下让传感器上电准备完毕
   int i = 40000000; 
   while (i--);
 
   motorInit(); // 初始化电调
   imuInit(); // 初始化IMU
   printf("Initialization complete. \r\n");
+
+  //  fairing_release();
+  // printf("release completed\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -119,19 +126,27 @@ int main(void)
   while (1)
   {
     ProcessIMUData(); // 处理IMU数据
-    printf("UART FIFO - In:%d, Out:%d, Cnt:%d | ", 
-          UartFifo.In, UartFifo.Out, UartFifo.Cnt);
-    IMU_Data_t* imu = IMU_GetData();
-    printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f°C D=%.2fm\r\n", 
-          imu->angleX, imu->angleY, imu->angleZ,
-          imu->accelX, imu->accelY, imu->accelZ,
-          MS5837_GetData()->temperature, MS5837_GetData()->depth);
+    // printf("UART FIFO - In:%d, Out:%d, Cnt:%d | ", 
+    //       UartFifo.In, UartFifo.Out, UartFifo.Cnt);
+    // IMU_Data_t* imu = IMU_GetData();
+    // printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f°C D=%.2fm\r\n", 
+    //       imu->angleX, imu->angleY, imu->angleZ,
+    //       imu->accelX, imu->accelY, imu->accelZ,
+    //       MS5837_GetData()->temperature, MS5837_GetData()->depth);
 
-    HAL_Delay(500);
+    // HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8);
+    // HAL_Delay(500); // 延时500ms
+    
+    
+    
+    
+    
+    
+    
+    
+    
     /* USER CODE END WHILE */
-
     /* USER CODE BEGIN 3 */
-    // Dbp("AngleX=%.2f,AngleY=%.2f,AngleZ=%.2f\r\n", AngleX, AngleY, AngleZ); // 输出浮点数
 
   }
   /* USER CODE END 3 */

@@ -9,7 +9,7 @@
 #include <string.h>
 #include "sensor_process.h"
 
-
+extern uint8_t rx_byte_debug;
 extern uint8_t rx_byte;
 extern uint8_t uart3_rx_buffer[32]; 
 extern uint8_t uart3_rx_byte;           // 单字节接收变量
