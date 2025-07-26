@@ -12,7 +12,6 @@ build/
 *.d
 
 # IDE-specific settings (e.g., VS Code, Eclipse)
-.vscode/
 .settings/
 .cproject
 .project
@@ -25,3 +24,9 @@ Thumbs.db
 .DS_Store
 .clangd
 desktop.ini
+
+# Environment file
+.env
+
+# Gemini configuration
+GEMINI.md
