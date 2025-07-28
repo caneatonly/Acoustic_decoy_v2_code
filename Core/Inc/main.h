@@ -61,6 +61,9 @@ void Error_Handler(void);
 #define LEDstatus_GPIO_Port GPIOA
 #define Swich_Pin GPIO_PIN_5
 #define Swich_GPIO_Port GPIOA
+#define BT_status_Pin GPIO_PIN_4
+#define BT_status_GPIO_Port GPIOC
+#define BT_status_EXTI_IRQn EXTI4_IRQn
 #define LEDtest_Pin GPIO_PIN_8
 #define LEDtest_GPIO_Port GPIOA
 

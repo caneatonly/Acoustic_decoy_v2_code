@@ -30,3 +30,16 @@ desktop.ini
 
 # Gemini configuration
 GEMINI.md
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+build.ninja
+
+# VSCode settings
+# Note: tasks.json and launch.json can sometimes be shared.
+# If so, add !.vscode/tasks.json and !.vscode/launch.json
+.vscode/
+!.vscode/tasks.json and !.vscode/launch.json
