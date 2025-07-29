@@ -136,6 +136,8 @@ int main(void)
     //       imu->angleX, imu->angleY, imu->angleZ,
     //       imu->accelX, imu->accelY, imu->accelZ,
     //       MS5837_GetData()->temperature, MS5837_GetData()->depth);
+    printf("CMSIS_DAP CONNECTED!\r\n");
+
 
     // HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8);
     // HAL_Delay(500); // 延时500ms

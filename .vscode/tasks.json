@@ -10,16 +10,16 @@
     },
     "tasks": [
         // =================================================================================
-        // 新增任务：使用 nanoDAP-wireless (OpenOCD) 烧录程序
+        // 使用 nanoDAP-wireless (OpenOCD) 烧录程序，基于powershell
         // =================================================================================
         {
             "type": "shell",
-            "label": "OpenOCD: Flash with nanoDAP-wireless",
-            "command": "openocd", // 确保 openocd 在系统环境变量中
+            "label": "OpenOCD: Flash project (nanoDAP-wireless)",
+            "command": "powershell",
             "args": [
-                "-f", "interface/cmsis-dap.cfg",
-                "-f", "target/stm32f1x.cfg",
-                "-c", "program ${command:cmake.launchTargetPath} verify reset exit"
+                "-NoProfile",
+                "-Command",
+                "$elf = '${command:cmake.launchTargetPath}'.Replace('\\', '/'); $cmd = 'program \"' + $elf + '\" verify reset exit'; openocd -f interface/cmsis-dap.cfg -f target/stm32f1x.cfg -c $cmd"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -27,7 +27,7 @@
             "problemMatcher": []
         },
         // =================================================================================
-        // 新增复合任务：编译并使用 nanoDAP-wireless 烧录
+        // 重新构建并使用 nanoDAP-wireless 烧录
         // =================================================================================
         {
             "label": "Build + Flash (nanoDAP-wireless)",
@@ -39,11 +39,11 @@
             "problemMatcher": []
         },
         // =================================================================================
-        // 您原有的任务 (已保留)
+        // STM32_Programmer
         // =================================================================================
         {
             "type": "shell",
-            "label": "CubeProg: Flash project (SWD)",
+            "label": "CubeProg: Flash project (ST-Link)",
             "command": "STM32_Programmer_CLI",
             "args": [
                 "--connect", "port=swd",
