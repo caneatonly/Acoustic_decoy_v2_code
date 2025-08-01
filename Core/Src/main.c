@@ -132,6 +132,7 @@ int main(void)
   {
     ProcessIMUData(); // 处理IMU数据
     BT_StatusHandler(); // 处理蓝牙连接状态变化
+    UART1_DataHandler(); // 处理UART1蓝牙调试命令
     printf("UART FIFO - In:%d, Out:%d, Cnt:%d | ", 
           UartFifo.In, UartFifo.Out, UartFifo.Cnt);
     IMU_Data_t* imu = IMU_GetData();
