@@ -35,17 +35,15 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
     if (huart->Instance == USART1)
     {
-        HAL_UART_Receive_IT(huart, &rx_byte_debug, 1);
         printf("USART1 received: 0x%02X ('%c')\r\n", rx_byte_debug, rx_byte_debug);
+        HAL_UART_Receive_IT(huart, &rx_byte_debug, 1);
+        
         // // 判断接收到的字节是否为'1'
         // if (rx_byte_debug == '1')
         // {
         //     fairing_release();
         //     printf("faring release command received\r\n");
         // }
-        
-
-        
     }
     else if (huart->Instance == USART2)
     {

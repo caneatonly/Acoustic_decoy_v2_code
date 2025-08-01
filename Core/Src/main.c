@@ -20,6 +20,7 @@
 #include "main.h"
 #include "adc.h"
 #include "i2c.h"
+#include "stm32f1xx_hal.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -129,15 +130,14 @@ int main(void)
   while (1)
   {
     ProcessIMUData(); // 处理IMU数据
-    // printf("UART FIFO - In:%d, Out:%d, Cnt:%d | ", 
-    //       UartFifo.In, UartFifo.Out, UartFifo.Cnt);
-    // IMU_Data_t* imu = IMU_GetData();
-    // printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f°C D=%.2fm\r\n", 
-    //       imu->angleX, imu->angleY, imu->angleZ,
-    //       imu->accelX, imu->accelY, imu->accelZ,
-    //       MS5837_GetData()->temperature, MS5837_GetData()->depth);
-    printf("CMSIS_DAP CONNECTED!\r\n");
-
+    printf("UART FIFO - In:%d, Out:%d, Cnt:%d | ", 
+          UartFifo.In, UartFifo.Out, UartFifo.Cnt);
+    IMU_Data_t* imu = IMU_GetData();
+    printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f°C D=%.2fm\r\n", 
+          imu->angleX, imu->angleY, imu->angleZ,
+          imu->accelX, imu->accelY, imu->accelZ,
+          MS5837_GetData()->temperature, MS5837_GetData()->depth);
+    HAL_Delay(1000);
 
     // HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8);
     // HAL_Delay(500); // 延时500ms
