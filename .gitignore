@@ -31,6 +31,9 @@ desktop.ini
 # Gemini configuration
 GEMINI.md
 
+# Claude Code configuration
+CLAUDE.md
+
 # CMake generated files
 CMakeCache.txt
 CMakeFiles/

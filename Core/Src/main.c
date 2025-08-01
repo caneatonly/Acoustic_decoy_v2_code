@@ -119,6 +119,7 @@ int main(void)
 
   motorInit(); // 初始化电调
   imuInit(); // 初始化IMU
+  BT_StatusInit(); // 初始化蓝牙状态检测
   printf("Initialization complete. \r\n");
 
   //  fairing_release();
@@ -130,6 +131,7 @@ int main(void)
   while (1)
   {
     ProcessIMUData(); // 处理IMU数据
+    BT_StatusHandler(); // 处理蓝牙连接状态变化
     printf("UART FIFO - In:%d, Out:%d, Cnt:%d | ", 
           UartFifo.In, UartFifo.Out, UartFifo.Cnt);
     IMU_Data_t* imu = IMU_GetData();

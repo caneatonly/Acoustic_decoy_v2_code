@@ -16,10 +16,19 @@ extern uint8_t uart3_rx_byte;           // 单字节接收变量
 extern uint8_t uart3_rx_index;          // 缓冲区索引
 
 
+// 蓝牙连接状态变量
+extern volatile uint8_t bt_connected;        // 蓝牙连接状态标志
+extern volatile uint8_t bt_status_changed;   // 蓝牙状态变化标志
+extern volatile uint32_t bt_debounce_time;   // 防抖时间戳
+
 int UART_Write(uint8_t *buf, int Len);
 
-
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
+
+// 蓝牙状态处理函数
+void BT_StatusInit(void);
+void BT_StatusHandler(void);
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 
 
 

@@ -20,6 +20,75 @@ uint8_t uart3_rx_buffer[32];
 uint8_t uart3_rx_byte;
 uint8_t uart3_rx_index=0;
 
+// 蓝牙连接状态变量
+volatile uint8_t bt_connected = 0;        // 蓝牙连接状态：0=未连接，1=已连接
+volatile uint8_t bt_status_changed = 0;   // 状态变化标志：0=无变化，1=有变化
+volatile uint32_t bt_debounce_time = 0;   // 防抖时间戳
+
+#define BT_DEBOUNCE_DELAY_MS 50           // 防抖延时50ms
+
+/**
+ * @brief 蓝牙状态初始化
+ */
+void BT_StatusInit(void)
+{
+    // 读取当前PC4引脚状态
+    bt_connected = HAL_GPIO_ReadPin(BT_status_GPIO_Port, BT_status_Pin);
+    bt_status_changed = 0;
+    
+    printf("BT Status initialized: %s\r\n", bt_connected ? "Connected" : "Disconnected");
+}
+
+/**
+ * @brief 蓝牙状态处理函数，在主循环中调用
+ */
+void BT_StatusHandler(void)
+{
+    // 处理防抖逻辑
+    if (bt_debounce_time != 0)
+    {
+        uint32_t current_time = HAL_GetTick();
+        if (current_time - bt_debounce_time >= BT_DEBOUNCE_DELAY_MS)
+        {
+            // 防抖时间到，重新读取引脚状态确认
+            uint8_t current_status = HAL_GPIO_ReadPin(BT_status_GPIO_Port, BT_status_Pin);
+            
+            if (current_status != bt_connected)
+            {
+                bt_connected = current_status;
+                bt_status_changed = 1;  // 设置状态变化标志
+            }
+            
+            bt_debounce_time = 0;  // 清除防抖时间戳
+        }
+    }
+    
+    // 处理状态变化
+    if (bt_status_changed)
+    {
+        bt_status_changed = 0;  // 清除状态变化标志
+        
+        if (bt_connected)
+        {
+            // 蓝牙连接时发送上线消息
+            printf("Acoustic_decoy is online.\r\n");
+        }
+    }
+}
+
+/**
+ * @brief GPIO外部中断回调函数
+ * @param GPIO_Pin 触发中断的GPIO引脚
+ */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    if (GPIO_Pin == BT_status_Pin)
+    {
+        // 快速处理：仅设置防抖时间戳，实际状态检测在主循环中完成
+        bt_debounce_time = HAL_GetTick();
+    }
+}
+
 // 描述: 被Cmd_Write调用，用于向IMU发送数据
 // 返回: 返回发送字节数
 int UART_Write(uint8_t *buf, int Len)
