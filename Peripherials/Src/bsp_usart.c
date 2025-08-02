@@ -1,6 +1,9 @@
 #include "bsp_usart.h"
 #include "im948_CMD.h"
-
+#include "sensor_process.h"
+#include <stdlib.h>
+#include <string.h>
+#include "stdio.h"
 
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -20,6 +23,178 @@ uint8_t uart3_rx_buffer[32];
 uint8_t uart3_rx_byte;
 uint8_t uart3_rx_index=0;
 
+// UART1蓝牙调试接收缓冲区
+uint8_t uart1_rx_buffer[UART1_RX_BUFFER_SIZE];
+volatile uint8_t uart1_rx_index = 0;
+volatile uint8_t uart1_data_ready = 0;
+
+// 蓝牙连接状态变量
+volatile uint8_t bt_connected = 0;        // 蓝牙连接状态：0=未连接，1=已连接
+volatile uint8_t bt_status_changed = 0;   // 状态变化标志：0=无变化，1=有变化
+volatile uint32_t bt_debounce_time = 0;   // 防抖时间戳
+
+// LED闪烁控制变量 (Non-blocking LED blink control)
+static uint32_t led_blink_time = 0;       // LED闪烁时间戳
+static uint8_t led_state = 0;             // LED当前状态
+#define LED_BLINK_INTERVAL_MS 500         // LED闪烁间隔500ms
+
+#define BT_DEBOUNCE_DELAY_MS 50           // 防抖延时50ms
+
+/**
+ * @brief UART1蓝牙调试数据处理函数，在主循环中调用
+ */
+void UART1_DataHandler(void)
+{
+    if (uart1_data_ready)
+    {
+        uart1_data_ready = 0;  // 清除数据准备标志
+        
+        // 处理接收到的命令
+        ProcessUART1Command(uart1_rx_buffer, uart1_rx_index);
+        
+        // 重置缓冲区索引
+        uart1_rx_index = 0;
+    }
+}
+
+/**
+ * @brief 处理UART1接收到的命令 - 用户可自定义
+ * @param command 接收到的命令数据
+ * @param length 命令长度
+ */
+void ProcessUART1Command(uint8_t *command, uint8_t length)
+{
+    // 添加字符串结束符
+    command[length] = '\0';
+    
+    // 调试信息：显示接收到的命令
+    printf("UART1 received [%d bytes]: %s\r\n", length, (char*)command);
+    
+    // 命令处理模板 - 用户可根据需要扩展
+    if (strncmp((char*)command, "fairing", 7) == 0)
+    {
+        // 整流罩控制命令
+        fairing_release();
+        printf("Fairing release command executed\r\n");
+    }
+    else if (strncmp((char*)command, "valve_open", 10) == 0)
+    {
+        // 电磁阀开启命令
+        valve_open();
+        printf("Valve open command executed\r\n");
+    }
+    else if (strncmp((char*)command, "valve_close", 11) == 0)
+    {
+        // 电磁阀关闭命令
+        valve_close();
+        printf("Valve close command executed\r\n");
+    }
+    else if (strncmp((char*)command, "status", 6) == 0)
+    {
+        // 状态查询命令
+        printf("System Status:\r\n");
+        printf("  BT Connected: %s\r\n", bt_connected ? "Yes" : "No");
+        printf("  IMU Valid: %s\r\n", IMU_GetData()->data_valid ? "Yes" : "No");
+        printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
+    }
+    else if (command[0] == '1')
+    {
+        // 兼容原有的'1'命令
+        fairing_release();
+        printf("Legacy fairing release command executed\r\n");
+    }
+    else
+    {
+        // 未知命令
+        printf("Unknown command: %s\r\n", (char*)command);
+        printf("Available commands: fairing, valve_open, valve_close, status\r\n");
+    }
+}
+/**
+ * @brief 蓝牙状态初始化
+ */
+void BT_StatusInit(void)
+{
+    // 读取当前PC4引脚状态
+    bt_connected = HAL_GPIO_ReadPin(BT_status_GPIO_Port, BT_status_Pin);
+    bt_status_changed = 0;
+    
+    printf("BT Status initialized: %s\r\n", bt_connected ? "Connected" : "Disconnected");
+}
+
+/**
+ * @brief 蓝牙状态处理函数，在主循环中调用
+ */
+void BT_StatusHandler(void)
+{
+    // 处理防抖逻辑
+    if (bt_debounce_time != 0)
+    {
+        uint32_t current_time = HAL_GetTick();
+        if (current_time - bt_debounce_time >= BT_DEBOUNCE_DELAY_MS)
+        {
+            // 防抖时间到，重新读取引脚状态确认
+            uint8_t current_status = HAL_GPIO_ReadPin(BT_status_GPIO_Port, BT_status_Pin);
+            
+            if (current_status != bt_connected)
+            {
+                bt_connected = current_status;
+                bt_status_changed = 1;  // 设置状态变化标志
+            }
+            
+            bt_debounce_time = 0;  // 清除防抖时间戳
+        }
+    }
+    
+    // 处理状态变化
+    if (bt_status_changed)
+    {
+        bt_status_changed = 0;  // 清除状态变化标志
+        
+        if (bt_connected)
+        {
+            // 蓝牙连接时发送上线消息并开启LED常亮
+            printf("Acoustic_decoy is online.\r\n");
+            LEDstatus_on();  // LED常亮
+        }
+        else {
+            // 蓝牙断开时，准备开始LED闪烁
+            led_blink_time = HAL_GetTick();  // 重置闪烁时间戳
+            led_state = 0;  // 重置LED状态
+            LEDstatus_off();  // 先关闭LED
+        }
+    }
+    
+    // 处理LED闪烁逻辑（仅在蓝牙未连接时）
+    if (!bt_connected)
+    {
+        uint32_t current_time = HAL_GetTick();
+        if (current_time - led_blink_time >= LED_BLINK_INTERVAL_MS)
+        {
+            led_blink_time = current_time;  // 更新时间戳
+            led_state = !led_state;  // 切换LED状态
+            if (led_state) {
+                LEDstatus_on();
+            } else {
+                LEDstatus_off();
+            }
+        }
+    }
+}
+
+/**
+ * @brief GPIO外部中断回调函数
+ * @param GPIO_Pin 触发中断的GPIO引脚
+ */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    if (GPIO_Pin == BT_status_Pin)
+    {
+        // 快速处理：仅设置防抖时间戳，实际状态检测在主循环中完成
+        bt_debounce_time = HAL_GetTick();
+    }
+}
+
 // 描述: 被Cmd_Write调用，用于向IMU发送数据
 // 返回: 返回发送字节数
 int UART_Write(uint8_t *buf, int Len)
@@ -29,23 +204,46 @@ int UART_Write(uint8_t *buf, int Len)
 }
 
 
-
+/**
+    * @brief UART接收完成回调函数
+    * @param huart 指向UART句柄的指针
+    * 
+    * 处理不同UART实例的接收数据：
+    * - USART1: 蓝牙调试命令接收与状态发送
+    * - USART2: IMU数据接收
+    * - USART3: MS5837深度传感器数据接收 
+*/
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 {
     if (huart->Instance == USART1)
     {
+        // 快速处理：将接收数据存入缓冲区，设置标志位
+        if (uart1_rx_index < (UART1_RX_BUFFER_SIZE - 1))
+        {
+            uart1_rx_buffer[uart1_rx_index++] = rx_byte_debug;
+            
+            // 检测命令结束条件：感叹号
+            if (rx_byte_debug == '1')
+            {
+                if (uart1_rx_index > 1)  // 确保有有效数据
+                {
+                    uart1_rx_index--;  // 移除结束符
+                    uart1_data_ready = 1;  // 设置数据准备标志
+                }
+                else
+                {
+                    uart1_rx_index = 0;  // 重置索引
+                }
+            }
+        }
+        else
+        {
+            // 缓冲区溢出，重置
+            uart1_rx_index = 0;
+        }
+        // 重新启用接收中断
         HAL_UART_Receive_IT(huart, &rx_byte_debug, 1);
-        printf("USART1 received: 0x%02X ('%c')\r\n", rx_byte_debug, rx_byte_debug);
-        // // 判断接收到的字节是否为'1'
-        // if (rx_byte_debug == '1')
-        // {
-        //     fairing_release();
-        //     printf("faring release command received\r\n");
-        // }
-        
-
-        
     }
     else if (huart->Instance == USART2)
     {

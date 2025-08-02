@@ -20,6 +20,7 @@
 #include "main.h"
 #include "adc.h"
 #include "i2c.h"
+#include "stm32f1xx_hal.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -103,41 +104,47 @@ int main(void)
   MX_I2C1_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-  //打开IMU接收中断
+
+  printf("Acoustic Decoy Initializing . . .\r\n");
+
+  //打开三个串口接收中断
   HAL_UART_Receive_IT(&huart1, &rx_byte_debug, 1); //Debug PA9,PA10
   HAL_UART_Receive_IT(&huart2, &rx_byte, 1);// IMU PA2,PA3
   HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);// MS5837 PB10,PB11
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // 启动PWM输出 TIM3_CH1 PA6
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2); // 启动PWM输出 TIM3_CH2 PA7
 
-  printf("Acoustic Decoy Initializing . . .\r\n");
-
 // 延时一下让传感器上电准备完毕
-  int i = 40000000; 
-  while (i--);
+  HAL_Delay(1000); // 延时1秒
 
   motorInit(); // 初始化电调
   imuInit(); // 初始化IMU
+  BT_StatusInit(); // 初始化蓝牙状态检测
+
+
   printf("Initialization complete. \r\n");
 
-  //  fairing_release();
-  // printf("release completed\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    //Handlers
     ProcessIMUData(); // 处理IMU数据
-    // printf("UART FIFO - In:%d, Out:%d, Cnt:%d | ", 
-    //       UartFifo.In, UartFifo.Out, UartFifo.Cnt);
-    // IMU_Data_t* imu = IMU_GetData();
-    // printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f°C D=%.2fm\r\n", 
+    BT_StatusHandler(); // 处理蓝牙连接状态变化
+    UART1_DataHandler(); // 处理UART1蓝牙调试命令
+
+    // 获取当前IMU和MS5837数据
+    IMU_Data_t* imu = IMU_GetData();
+    MS5837_Data_t* ms5837 = MS5837_GetData();
+
+    // printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2fD=%.2fm\r\n", 
     //       imu->angleX, imu->angleY, imu->angleZ,
     //       imu->accelX, imu->accelY, imu->accelZ,
-    //       MS5837_GetData()->temperature, MS5837_GetData()->depth);
-    printf("CMSIS_DAP CONNECTED!\r\n");
+    //       ms5837->temperature, ms5837->depth);
 
+    HAL_Delay(1000);
 
     // HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8);
     // HAL_Delay(500); // 延时500ms

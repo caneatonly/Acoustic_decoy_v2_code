@@ -3,6 +3,8 @@
 #include "im948_CMD.h"
 #include "stm32f1xx_hal.h"
 #include "tim.h"
+#include <stdlib.h>
+#include <string.h>
 
 // 全局数据实例
 MS5837_Data_t g_ms5837_data = {0};

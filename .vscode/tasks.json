@@ -34,7 +34,7 @@
             "dependsOrder": "sequence",
             "dependsOn": [
                 "CMake: clean rebuild",
-                "OpenOCD: Flash with nanoDAP-wireless"
+                "OpenOCD: Flash project (nanoDAP-wireless)"
             ],
             "problemMatcher": []
         },
