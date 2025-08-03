@@ -123,7 +123,7 @@ int main(void)
   BT_StatusInit(); // 初始化蓝牙状态检测
 
 
-  printf("Initialization complete. \r\n");
+  printf("Initialization completed. \r\n");
 
   /* USER CODE END 2 */
 
@@ -138,35 +138,28 @@ int main(void)
     MS5837_Process(&hi2c1, &MS5837_info_t); // 处理MS5837传感器数据
 
     // 获取当前IMU和MS5837数据
-    IMU_Data_t* imu = IMU_GetData();
-    MS5837_Data_t* ms5837 = MS5837_GetData();
+    // IMU_Data_t* imu = IMU_GetData();
+    // MS5837_Data_t* ms5837 = MS5837_GetData();
     // 获取传感器内部的详细数据
-    MS5837_t* sensor_details = &MS5837_info_t;
+//     MS5837_t* sensor_details = &MS5837_info_t;
 
-//  打印原始ADC值和计算出的毫巴值
- printf("D1(Pressure ADC): %ld, D2(Temp ADC): %ld, Pressure(mbar): %.2f\r\n",
-      sensor_details->pressure_D1,
-      sensor_details->temperature_D2,
-      sensor_details->pressure_mbar);
+    // //  打印原始ADC值和计算出的毫巴值
+    // printf("D1(Pressure ADC): %ld, D2(Temp ADC): %ld, Pressure(mbar): %.2f\r\n",
+    //       sensor_details->pressure_D1,
+    //       sensor_details->temperature_D2,
+    //       sensor_details->pressure_mbar);
 
-    printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2fD=%.2fm\r\n", 
-          imu->angleX, imu->angleY, imu->angleZ,
-          imu->accelX, imu->accelY, imu->accelZ,
-          ms5837->temperature, ms5837->depth);
+    // printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm\r\n", 
+    //       imu->angleX, imu->angleY, imu->angleZ,
+    //       imu->accelX, imu->accelY, imu->accelZ,
+    //       ms5837->temperature, ms5837->depth);
 
-    HAL_Delay(1000);
+    // HAL_Delay(1000);
 
     // HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8);
     // HAL_Delay(500); // 延时500ms
     
-    
-    
-    
-    
-    
-    
-    
-    
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

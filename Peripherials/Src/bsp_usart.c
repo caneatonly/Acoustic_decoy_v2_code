@@ -58,7 +58,7 @@ void UART1_DataHandler(void)
 }
 
 /**
- * @brief 处理UART1接收到的命令 - 用户可自定义
+ * @brief 处理UART1接收到的命令 - 自定义接口在这里
  * @param command 接收到的命令数据
  * @param length 命令长度
  */
@@ -91,23 +91,30 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
     }
     else if (strncmp((char*)command, "status", 6) == 0)
     {
+        IMU_Data_t* imu = IMU_GetData();
+        MS5837_Data_t* ms5837 = MS5837_GetData();
         // 状态查询命令
         printf("System Status:\r\n");
         printf("  BT Connected: %s\r\n", bt_connected ? "Yes" : "No");
         printf("  IMU Valid: %s\r\n", IMU_GetData()->data_valid ? "Yes" : "No");
         printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
+        printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm\r\n", 
+            imu->angleX, imu->angleY, imu->angleZ,
+            imu->accelX, imu->accelY, imu->accelZ,
+            ms5837->temperature, ms5837->depth); 
+
     }
-    else if (command[0] == '1')
+    else if (strncmp((char*)command, "reset", 5) == 0)
     {
-        // 兼容原有的'1'命令
-        fairing_release();
-        printf("Legacy fairing release command executed\r\n");
+        // 重置命令
+        printf("System reset command received\r\n");
+        NVIC_SystemReset();  // 执行系统重置
     }
     else
     {
         // 未知命令
         printf("Unknown command: %s\r\n", (char*)command);
-        printf("Available commands: fairing, valve_open, valve_close, status\r\n");
+        printf("Available commands: fairing, valve_open, valve_close, status, reset\r\n");
     }
 }
 /**

@@ -35,8 +35,8 @@ void BT_StatusHandler(void);
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 
 // UART1蓝牙调试数据处理函数
-void UART1_DataHandler(void);
-void ProcessUART1Command(uint8_t *command, uint8_t length);
+void UART1_DataHandler(void); //UART1蓝牙调试数据处理函数，在主循环中调用
+void ProcessUART1Command(uint8_t *command, uint8_t length); //处理UART1接收到的命令 - 自定义接口在这里
 
 
 
