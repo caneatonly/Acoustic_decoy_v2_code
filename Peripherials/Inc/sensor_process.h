@@ -5,7 +5,7 @@
 #include "im948_CMD.h"
 #include <stdint.h>
 #include <stdbool.h>
-
+#include "MS5837_lib.h"
 
 typedef struct {
     float temperature;       // 温度值 (°C)
@@ -44,7 +44,7 @@ void SensorSystem_Init(void);
 void ProcessIMUData(void);
 void motorInit(void);
 void imuInit(void);
-void ProcessUart3Data(uint8_t *data);
+// void ProcessUart3Data(uint8_t *data);
 void IMU_UpdateAngle(float angleX, float angleY, float angleZ);
 void IMU_UpdateAccel(float accelX, float accelY, float accelZ);
 

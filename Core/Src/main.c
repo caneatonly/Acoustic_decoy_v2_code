@@ -110,15 +110,16 @@ int main(void)
   //打开三个串口接收中断
   HAL_UART_Receive_IT(&huart1, &rx_byte_debug, 1); //Debug PA9,PA10
   HAL_UART_Receive_IT(&huart2, &rx_byte, 1);// IMU PA2,PA3
-  HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);// MS5837 PB10,PB11
+  // HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);// MS5837 PB10,PB11
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // 启动PWM输出 TIM3_CH1 PA6
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2); // 启动PWM输出 TIM3_CH2 PA7
 
 // 延时一下让传感器上电准备完毕
   HAL_Delay(1000); // 延时1秒
-
+  MS5837_SetFluidDensity(&MS5837_info_t, 1000.0f); // 设置海水密度为1025 kg/m³
   motorInit(); // 初始化电调
   imuInit(); // 初始化IMU
+  MS5837_Init(&hi2c1,&MS5837_info_t, 50); // 初始化MS5837压力传感器
   BT_StatusInit(); // 初始化蓝牙状态检测
 
 
@@ -134,15 +135,24 @@ int main(void)
     ProcessIMUData(); // 处理IMU数据
     BT_StatusHandler(); // 处理蓝牙连接状态变化
     UART1_DataHandler(); // 处理UART1蓝牙调试命令
+    MS5837_Process(&hi2c1, &MS5837_info_t); // 处理MS5837传感器数据
 
     // 获取当前IMU和MS5837数据
     IMU_Data_t* imu = IMU_GetData();
     MS5837_Data_t* ms5837 = MS5837_GetData();
+    // 获取传感器内部的详细数据
+    MS5837_t* sensor_details = &MS5837_info_t;
 
-    // printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2fD=%.2fm\r\n", 
-    //       imu->angleX, imu->angleY, imu->angleZ,
-    //       imu->accelX, imu->accelY, imu->accelZ,
-    //       ms5837->temperature, ms5837->depth);
+ // 打印原始ADC值和计算出的毫巴值
+//  printf("D1(Pressure ADC): %ld, D2(Temp ADC): %ld, Pressure(mbar): %.2f\r\n",
+//       sensor_details->pressure_D1,
+//       sensor_details->temperature_D2,
+//       sensor_details->pressure_mbar);
+
+    printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2fD=%.2fm\r\n", 
+          imu->angleX, imu->angleY, imu->angleZ,
+          imu->accelX, imu->accelY, imu->accelZ,
+          ms5837->temperature, ms5837->depth);
 
     HAL_Delay(1000);
 

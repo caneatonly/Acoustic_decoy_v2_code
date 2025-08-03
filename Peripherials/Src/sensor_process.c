@@ -99,37 +99,40 @@ void imuInit(void)
     Cmd_19();// 开启数据主动上报
 }
 
-// 深度传感器数据处理
-void ProcessUart3Data(uint8_t *data) {
-    // 手动解析
-    char *t_pos = strstr((char *)data, "T=");
-    char *d_pos = strstr((char *)data, "D=");
-    if (t_pos && d_pos) {
-      float temp = atof(t_pos + 2);
-      float depth = atof(d_pos + 2);
-    // 检查数据范围
-      if (temp >= -40.0f && temp <= 85.0f && depth >= -10.0f && depth <= 300.0f) {
-        g_ms5837_data.temperature = temp;
-        g_ms5837_data.depth = depth;
-        g_ms5837_data.timestamp = HAL_GetTick();
-        g_ms5837_data.data_valid = true;
+// // 深度传感器数据处理
+// void ProcessUart3Data(uint8_t *data) {
+//     // 手动解析
+//     char *t_pos = strstr((char *)data, "T=");
+//     char *d_pos = strstr((char *)data, "D=");
+//     if (t_pos && d_pos) {
+//       float temp = atof(t_pos + 2);
+//       float depth = atof(d_pos + 2);
+//     // 检查数据范围
+//       if (temp >= -40.0f && temp <= 85.0f && depth >= -10.0f && depth <= 300.0f) {
+//         g_ms5837_data.temperature = temp;
+//         g_ms5837_data.depth = depth;
+//         g_ms5837_data.timestamp = HAL_GetTick();
+//         g_ms5837_data.data_valid = true;
         
-        // 1秒输出一次
-        static uint32_t last_print_time = 0;
-        uint32_t current_time = HAL_GetTick();
-        if (current_time - last_print_time >= 1000) {
-            Dbp("MS5837 - T:%.2f°C, D:%.2fm\r\n", g_ms5837_data.temperature, g_ms5837_data.depth);
-            last_print_time = current_time;
-        }
-      } else {
-        g_ms5837_data.data_valid = false;
-        Dbp("MS5837 data out of range\r\n");
-      }
-    } else {
-      g_ms5837_data.data_valid = false;
-      Dbp("MS5837 parse failed: %s\r\n", data);
-    }
-}
+//         // 1秒输出一次
+//         static uint32_t last_print_time = 0;
+//         uint32_t current_time = HAL_GetTick();
+//         if (current_time - last_print_time >= 1000) {
+//             Dbp("MS5837 - T:%.2f°C, D:%.2fm\r\n", g_ms5837_data.temperature, g_ms5837_data.depth);
+//             last_print_time = current_time;
+//         }
+//       } else {
+//         g_ms5837_data.data_valid = false;
+//         Dbp("MS5837 data out of range\r\n");
+//       }
+//     } else {
+//       g_ms5837_data.data_valid = false;
+//       Dbp("MS5837 parse failed: %s\r\n", data);
+//     }
+// }
+
+
+
 
 
   // IMU角度数据更新函数
