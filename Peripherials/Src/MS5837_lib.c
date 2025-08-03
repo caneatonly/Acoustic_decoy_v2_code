@@ -1,4 +1,3 @@
-
 #include "sensor_process.h"
 
 // 海平面标准气压 (mbar)
@@ -7,6 +6,8 @@
 
 MS5837_t  MS5837_info_t= {0};
 
+// 深度校准标志 - 标记是否已经进行过深度零点校准
+static bool depth_calibrated = false;
 
 void MS5837_SetFluidDensity( MS5837_t *sensor, float density )
 {
@@ -152,7 +153,39 @@ void MS5837_Calculation(MS5837_t *sensor)
 	return;
 }
 
-// 计算水深函数 (基于压力差计算)
+
+// 处理MS5837深度数据并自动进行零点校准
+void MS5837_CalibrateDepthZero(MS5837_t *sensor)
+{
+    // 如果还没有进行深度校准
+    if (!depth_calibrated) {
+        // 检查压力值是否有效，避免在无效数据时进行校准
+        if (sensor->pressure_mbar > 0) {
+            // 计算当前原始深度值（不应用偏移量）
+            float pressure_pa = sensor->pressure_mbar * 100.0f;  // 转换为帕斯卡(Pa)
+            float sea_level_pa = SEA_LEVEL_PRESSURE_MBAR * 100.0f;
+            float pressure_diff = pressure_pa - sea_level_pa;
+            
+            // 如果流体密度未设置，使用海水默认密度
+            float density = (sensor->fluid_density > 0) ? sensor->fluid_density : 1025.0f;
+            
+            // 计算原始深度
+            float raw_depth = pressure_diff / (density * 9.80665f);
+            
+            // 设置深度偏移量，使当前深度读数为0
+            sensor->depth_offset = raw_depth;
+            depth_calibrated = true;
+            
+            // 输出校准信息
+            printf("Depth calibration completed! Offset: %.3fm\r\n", sensor->depth_offset);
+            // 校准后，下一次CalculateDepth的返回值将为0
+            printf("Current depth after calibration will be: 0.000m\r\n");
+        }
+    }
+}
+
+
+// 计算水深函数 (基于压力差计算，应用零点校准偏移)
 float MS5837_CalculateDepth(MS5837_t *sensor)
 {
     // 深度计算公式: depth = (pressure - sea_level_pressure) / (fluid_density * g)
@@ -166,11 +199,23 @@ float MS5837_CalculateDepth(MS5837_t *sensor)
     // 如果流体密度未设置，使用海水默认密度
     float density = (sensor->fluid_density > 0) ? sensor->fluid_density : 1025.0f;
     
-    // 深度计算: depth = ΔP / (ρ × g)
-    float depth = pressure_diff / (density * 9.80665f);
+    // 深度计算: depth = ΔP / (ρ × g) - depth_offset
+    float raw_depth = pressure_diff / (density * 9.80665f);
+    float calibrated_depth = raw_depth - sensor->depth_offset;
     
-    // 确保深度为正值（负值表示高于海平面）
-    return depth;
+    // 返回校准后的深度值
+    return calibrated_depth;
+}
+// 深度校准相关函数
+void MS5837_ResetDepthCalibration(void)
+{
+    depth_calibrated = false;
+    MS5837_info_t.depth_offset = 0.0f;
+}
+
+bool MS5837_IsDepthCalibrated(void)
+{
+    return depth_calibrated;
 }
 
 
@@ -230,6 +275,7 @@ void MS5837_Process( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor)
 
 		case CALCULATE_D1_D2:
 			MS5837_Calculation(sensor);
+			MS5837_CalibrateDepthZero(sensor);
 			
 			// 计算水深并更新全局数据结构
 			float calculated_depth = MS5837_CalculateDepth(sensor);
@@ -239,6 +285,9 @@ void MS5837_Process( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor)
 			g_ms5837_data.depth = calculated_depth;
 			g_ms5837_data.timestamp = HAL_GetTick();
 			g_ms5837_data.data_valid = true;
+			
+			// 处理深度校准逻辑
+
 			
 			sensor -> state = START_CONVERT_D1;
 			break;

@@ -143,11 +143,11 @@ int main(void)
     // 获取传感器内部的详细数据
     MS5837_t* sensor_details = &MS5837_info_t;
 
- // 打印原始ADC值和计算出的毫巴值
-//  printf("D1(Pressure ADC): %ld, D2(Temp ADC): %ld, Pressure(mbar): %.2f\r\n",
-//       sensor_details->pressure_D1,
-//       sensor_details->temperature_D2,
-//       sensor_details->pressure_mbar);
+//  打印原始ADC值和计算出的毫巴值
+ printf("D1(Pressure ADC): %ld, D2(Temp ADC): %ld, Pressure(mbar): %.2f\r\n",
+      sensor_details->pressure_D1,
+      sensor_details->temperature_D2,
+      sensor_details->pressure_mbar);
 
     printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2fD=%.2fm\r\n", 
           imu->angleX, imu->angleY, imu->angleZ,

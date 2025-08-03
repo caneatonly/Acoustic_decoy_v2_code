@@ -51,6 +51,7 @@ typedef struct
 	float 			pressure_mbar;
 	float 			temperature_celsius;
 	float 			fluid_density;
+	float 			depth_offset;  // 深度校准偏移量 (Depth calibration offset)
 
 	MS5837_States 	state;
 
@@ -67,7 +68,9 @@ void 	MS5837_ReadADC( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor );
 void 	MS5837_Calculation( MS5837_t *sensor );
 void 	MS5837_Process( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor);
 float 	MS5837_CalculateDepth( MS5837_t *sensor );
-
+void 	MS5837_CalibrateDepthZero( MS5837_t *sensor );  // 深度零点校准 (Depth zero calibration)
+void MS5837_ResetDepthCalibration(void); // 重置深度校准状态 (Reset depth calibration state)
+bool MS5837_IsDepthCalibrated(void); // 检查深度是否已校准 (Check if depth is calibrated)
 
 //实例化
 extern MS5837_t  MS5837_info_t;
