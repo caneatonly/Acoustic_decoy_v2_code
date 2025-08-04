@@ -20,7 +20,6 @@
 #include "main.h"
 #include "adc.h"
 #include "i2c.h"
-#include "stm32f1xx_hal.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -103,7 +102,6 @@ int main(void)
   MX_TIM3_Init();
   MX_I2C1_Init();
   MX_ADC1_Init();
-
   /* USER CODE BEGIN 2 */
 
   printf("Acoustic Decoy Initializing . . .\r\n");
@@ -121,7 +119,6 @@ int main(void)
   motorInit(); // 初始化电调
   imuInit(); // 初始化IMU
   MS5837_Init(&hi2c1,&MS5837_info_t, 50); // 初始化MS5837压力传感器
-  BT_StatusInit(); // 初始化蓝牙状态检测
 
   printf("Initialization completed. \r\n");
 
@@ -133,7 +130,6 @@ int main(void)
   {
     //Handlers
     ProcessIMUData(); // 处理IMU数据
-    BT_StatusHandler(); // 处理蓝牙连接状态变化
     UART1_DataHandler(); // 处理UART1蓝牙调试命令
     MS5837_Process(&hi2c1, &MS5837_info_t); // 处理MS5837传感器数据
 

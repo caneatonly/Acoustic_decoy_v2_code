@@ -19,20 +19,11 @@ extern volatile uint8_t uart1_rx_index;
 extern volatile uint8_t uart1_data_ready;    // 数据准备标志
 
 
-// 蓝牙连接状态变量
-extern volatile uint8_t bt_connected;        // 蓝牙连接状态标志
-extern volatile uint8_t bt_status_changed;   // 蓝牙状态变化标志
-extern volatile uint32_t bt_debounce_time;   // 防抖时间戳
-
 
 int UART_Write(uint8_t *buf, int Len);
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
 
-// 蓝牙状态处理函数
-void BT_StatusInit(void);
-void BT_StatusHandler(void);
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 
 // UART1蓝牙调试数据处理函数
 void UART1_DataHandler(void); //UART1蓝牙调试数据处理函数，在主循环中调用

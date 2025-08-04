@@ -28,17 +28,7 @@ uint8_t uart1_rx_buffer[UART1_RX_BUFFER_SIZE];
 volatile uint8_t uart1_rx_index = 0;
 volatile uint8_t uart1_data_ready = 0;
 
-// 蓝牙连接状态变量
-volatile uint8_t bt_connected = 0;        // 蓝牙连接状态：0=未连接，1=已连接
-volatile uint8_t bt_status_changed = 0;   // 状态变化标志：0=无变化，1=有变化
-volatile uint32_t bt_debounce_time = 0;   // 防抖时间戳
 
-// LED闪烁控制变量 (Non-blocking LED blink control)
-static uint32_t led_blink_time = 0;       // LED闪烁时间戳
-static uint8_t led_state = 0;             // LED当前状态
-#define LED_BLINK_INTERVAL_MS 500         // LED闪烁间隔500ms
-
-#define BT_DEBOUNCE_DELAY_MS 50           // 防抖延时50ms
 
 /**
  * @brief UART1蓝牙调试数据处理函数，在主循环中调用
@@ -89,7 +79,7 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         valve_close();
         printf("Valve close command executed\r\n");
     }
-    else if (strncmp((char*)command,"motortest", 9))
+    else if (strncmp((char*)command,"motortest", 9) == 0)
     {
         // 电机测试命令
         motor_test();
@@ -101,7 +91,6 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         MS5837_Data_t* ms5837 = MS5837_GetData();
         // 状态查询命令
         printf("System Status:\r\n");
-        printf("  BT Connected: %s\r\n", bt_connected ? "Yes" : "No");
         printf("  IMU Valid: %s\r\n", IMU_GetData()->data_valid ? "Yes" : "No");
         printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
         printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm\r\n", 
@@ -122,90 +111,6 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         printf("Unknown command: %s\r\n", (char*)command);
         printf("Available commands: \r\n");
         printf("motortest, fairing, valve_open, valve_close, status, reset\r\n");
-    }
-}
-/**
- * @brief 蓝牙状态初始化
- */
-void BT_StatusInit(void)
-{
-    // 读取当前PC4引脚状态
-    bt_connected = HAL_GPIO_ReadPin(BT_status_GPIO_Port, BT_status_Pin);
-    bt_status_changed = 0;
-    
-    printf("BT Status initialized: %s\r\n", bt_connected ? "Connected" : "Disconnected");
-}
-
-/**
- * @brief 蓝牙状态处理函数，在主循环中调用
- */
-void BT_StatusHandler(void)
-{
-    // 处理防抖逻辑
-    if (bt_debounce_time != 0)
-    {
-        uint32_t current_time = HAL_GetTick();
-        if (current_time - bt_debounce_time >= BT_DEBOUNCE_DELAY_MS)
-        {
-            // 防抖时间到，重新读取引脚状态确认
-            uint8_t current_status = HAL_GPIO_ReadPin(BT_status_GPIO_Port, BT_status_Pin);
-            
-            if (current_status != bt_connected)
-            {
-                bt_connected = current_status;
-                bt_status_changed = 1;  // 设置状态变化标志
-            }
-            
-            bt_debounce_time = 0;  // 清除防抖时间戳
-        }
-    }
-    
-    // 处理状态变化
-    if (bt_status_changed)
-    {
-        bt_status_changed = 0;  // 清除状态变化标志
-        
-        if (bt_connected)
-        {
-            // 蓝牙连接时发送上线消息并开启LED常亮
-            printf("Acoustic_decoy is online.\r\n");
-            LEDstatus_on();  // LED常亮
-        }
-        else {
-            // 蓝牙断开时，准备开始LED闪烁
-            led_blink_time = HAL_GetTick();  // 重置闪烁时间戳
-            led_state = 0;  // 重置LED状态
-            LEDstatus_off();  // 先关闭LED
-        }
-    }
-    
-    // 处理LED闪烁逻辑（仅在蓝牙未连接时）
-    if (!bt_connected)
-    {
-        uint32_t current_time = HAL_GetTick();
-        if (current_time - led_blink_time >= LED_BLINK_INTERVAL_MS)
-        {
-            led_blink_time = current_time;  // 更新时间戳
-            led_state = !led_state;  // 切换LED状态
-            if (led_state) {
-                LEDstatus_on();
-            } else {
-                LEDstatus_off();
-            }
-        }
-    }
-}
-
-/**
- * @brief GPIO外部中断回调函数
- * @param GPIO_Pin 触发中断的GPIO引脚
- */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-    if (GPIO_Pin == BT_status_Pin)
-    {
-        // 快速处理：仅设置防抖时间戳，实际状态检测在主循环中完成
-        bt_debounce_time = HAL_GetTick();
     }
 }
 
