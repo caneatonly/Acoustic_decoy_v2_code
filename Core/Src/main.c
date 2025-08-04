@@ -103,11 +103,12 @@ int main(void)
   MX_TIM3_Init();
   MX_I2C1_Init();
   MX_ADC1_Init();
+
   /* USER CODE BEGIN 2 */
 
   printf("Acoustic Decoy Initializing . . .\r\n");
 
-  //打开三个串口接收中断
+  //打开串口中断接收，UART3空置
   HAL_UART_Receive_IT(&huart1, &rx_byte_debug, 1); //Debug PA9,PA10
   HAL_UART_Receive_IT(&huart2, &rx_byte, 1);// IMU PA2,PA3
   // HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);// MS5837 PB10,PB11
@@ -116,12 +117,11 @@ int main(void)
 
 // 延时一下让传感器上电准备完毕
   HAL_Delay(1000); // 延时1秒
-  MS5837_SetFluidDensity(&MS5837_info_t, 1000.0f); // 设置海水密度为1025 kg/m³
+  MS5837_SetFluidDensity(&MS5837_info_t, 1000.0f); // 设置海水密度为1000 kg/m³
   motorInit(); // 初始化电调
   imuInit(); // 初始化IMU
   MS5837_Init(&hi2c1,&MS5837_info_t, 50); // 初始化MS5837压力传感器
   BT_StatusInit(); // 初始化蓝牙状态检测
-
 
   printf("Initialization completed. \r\n");
 

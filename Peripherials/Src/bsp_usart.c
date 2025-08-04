@@ -89,6 +89,12 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         valve_close();
         printf("Valve close command executed\r\n");
     }
+    else if (strncmp((char*)command,"motortest", 9))
+    {
+        // 电机测试命令
+        motor_test();
+        printf("Motor test command executed\r\n");
+    }
     else if (strncmp((char*)command, "status", 6) == 0)
     {
         IMU_Data_t* imu = IMU_GetData();
@@ -114,7 +120,8 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
     {
         // 未知命令
         printf("Unknown command: %s\r\n", (char*)command);
-        printf("Available commands: fairing, valve_open, valve_close, status, reset\r\n");
+        printf("Available commands: \r\n");
+        printf("motortest, fairing, valve_open, valve_close, status, reset\r\n");
     }
 }
 /**

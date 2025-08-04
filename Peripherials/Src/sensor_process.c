@@ -91,6 +91,38 @@ void motorInit(void)
   HAL_Delay(500);
 }
 
+// 电机测试函数
+void motor_test(void)
+{
+    // 启动电机
+    g_motor_control.motor_enabled = true;
+    g_motor_control.target_pwm = 2000;  // 设置目标PWM值为2000
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, g_motor_control.target_pwm);
+    
+    // 延时1秒以观察电机状态
+    HAL_Delay(1000);
+    
+    // 停止电机
+    g_motor_control.motor_enabled = false;
+    g_motor_control.target_pwm = 1500;  // 设置目标PWM值为1500（中性位置）
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, g_motor_control.target_pwm);
+}
+
+//电机转速设置函数
+void SetMotorSpeed(uint16_t speed)
+{
+    if (speed < 1000) speed = 1000;  // 限制最小值
+    if (speed > 2000) speed = 2000;  // 限制最大值
+    if(speed != 1500){
+        g_motor_control.motor_enabled = true; // 启用电机
+    } else {
+        g_motor_control.motor_enabled = false; // 停止电机
+    }
+    g_motor_control.target_pwm = speed;
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, g_motor_control.target_pwm);
+}
+
+
 // 初始化IMU
 void imuInit(void)
 {
@@ -162,11 +194,13 @@ void LEDstatus_off(void) {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET); // PA4 LED OFF
 }
 
+// 整流罩控制函数
 void fairing_release(void){
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
     HAL_Delay(100); // 等待100ms以确保释放完成
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1000);
 }
+
 void fairing_retract(void){
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1000);
 }

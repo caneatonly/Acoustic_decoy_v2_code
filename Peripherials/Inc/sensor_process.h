@@ -60,6 +60,10 @@ void fairing_retract(void);
 void valve_open(void);
 void valve_close(void);
 
+// 电机控制函数函数
+void motor_test(void); // 电机测试函数
+void SetMotorSpeed(uint16_t speed); // 电机速度设置函数/
+
 // 数据访问接口
 MS5837_Data_t* MS5837_GetData(void);
 IMU_Data_t* IMU_GetData(void);
