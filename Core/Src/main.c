@@ -110,11 +110,13 @@ int main(void)
   HAL_UART_Receive_IT(&huart1, &rx_byte_debug, 1); //Debug PA9,PA10
   HAL_UART_Receive_IT(&huart2, &rx_byte, 1);// IMU PA2,PA3
   // HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);// MS5837 PB10,PB11
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // 启动PWM输出 TIM3_CH1 PA6
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2); // 启动PWM输出 TIM3_CH2 PA7
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3); // 启动PWM输出 TIM3_CH3 PB0 power 
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // 启动PWM输出 TIM3_CH1 PA6 fairing release
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2); // 启动PWM输出 TIM3_CH2 PA7 valve control
 
 // 延时一下让传感器上电准备完毕
   HAL_Delay(1000); // 延时1秒
+  power_on(); // 打开电源
   MS5837_SetFluidDensity(&MS5837_info_t, 1000.0f); // 设置海水密度为1000 kg/m³
   motorInit(); // 初始化电调
   imuInit(); // 初始化IMU

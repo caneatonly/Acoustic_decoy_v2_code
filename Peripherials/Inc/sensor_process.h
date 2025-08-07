@@ -48,6 +48,10 @@ void imuInit(void);
 void IMU_UpdateAngle(float angleX, float angleY, float angleZ);
 void IMU_UpdateAccel(float accelX, float accelY, float accelZ);
 
+//电源控制函数
+void power_on(void);
+void power_off(void);
+
 //状态灯控制函数
 void LEDstatus_on(void);
 void LEDstatus_off(void);

@@ -194,6 +194,14 @@ void LEDstatus_off(void) {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET); // PA4 LED OFF
 }
 
+// 电源控制函数
+void power_on(void) {
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 2000);
+}
+void power_off(void) {
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 1000);
+}
+
 // 整流罩控制函数
 void fairing_release(void){
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
