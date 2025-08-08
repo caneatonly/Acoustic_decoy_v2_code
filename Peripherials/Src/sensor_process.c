@@ -164,9 +164,6 @@ void imuInit(void)
 // }
 
 
-
-
-
   // IMU角度数据更新函数
 void IMU_UpdateAngle(float angleX, float angleY, float angleZ)
 {
@@ -213,6 +210,7 @@ void fairing_retract(void){
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1000);
 }
 
+// 电磁阀控制函数
 void valve_open(void) {
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 2000);
 }

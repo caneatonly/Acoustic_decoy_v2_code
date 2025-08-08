@@ -22,7 +22,6 @@ extern volatile uint8_t uart1_data_ready;    // 数据准备标志
 
 int UART_Write(uint8_t *buf, int Len);
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
 
 
 // UART1蓝牙调试数据处理函数

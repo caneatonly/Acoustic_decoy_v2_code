@@ -1,3 +1,6 @@
+//该头文件包含了传感器数据处理的相关函数声明和数据结构定义
+//包括 IMU，MS5837，电磁阀，整流罩释放机构
+
 #ifndef __SENSOR_PROCESS_H
 #define __SENSOR_PROCESS_H
 
@@ -7,6 +10,7 @@
 #include <stdbool.h>
 #include "MS5837_lib.h"
 
+// MS5837传感器数据结构
 typedef struct {
     float temperature;       // 温度值 (°C)
     float depth;            // 深度值 (m)
@@ -39,20 +43,22 @@ extern MS5837_Data_t g_ms5837_data;
 extern IMU_Data_t g_imu_data;
 extern Motor_Control_t g_motor_control;
 
-// 传感器处理函数声明
+// 传感器初始化函数
 void SensorSystem_Init(void);
-void ProcessIMUData(void);
 void motorInit(void);
 void imuInit(void);
 // void ProcessUart3Data(uint8_t *data);
+
+// IMU相关函数
+void ProcessIMUData(void);
 void IMU_UpdateAngle(float angleX, float angleY, float angleZ);
 void IMU_UpdateAccel(float accelX, float accelY, float accelZ);
-
-//电源控制函数
+ 
+// 12v外设总电源控制函数
 void power_on(void);
 void power_off(void);
 
-//状态灯控制函数
+// 状态灯控制函数
 void LEDstatus_on(void);
 void LEDstatus_off(void);
 

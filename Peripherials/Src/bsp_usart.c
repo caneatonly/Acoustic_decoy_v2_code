@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "stdio.h"
+#include "baro_adc.h"
 
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -89,14 +90,17 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
     {
         IMU_Data_t* imu = IMU_GetData();
         MS5837_Data_t* ms5837 = MS5837_GetData();
+        BaroADC_Data_t* baro = BaroADC_GetData();
         // 状态查询命令
         printf("System Status:\r\n");
         printf("  IMU Valid: %s\r\n", IMU_GetData()->data_valid ? "Yes" : "No");
         printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
-        printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm\r\n", 
+        printf("  BARO(ADC) Valid: %s\r\n", baro->data_valid ? "Yes" : "No");
+        printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm | BARO: %.1fkPa (%.3fV, raw=%u)\r\n", 
             imu->angleX, imu->angleY, imu->angleZ,
             imu->accelX, imu->accelY, imu->accelZ,
-            ms5837->temperature, ms5837->depth); 
+            ms5837->temperature, ms5837->depth,
+            baro->pressure_kpa, baro->voltage_v, baro->raw);
 
     }
     else if (strncmp((char*)command, "reset", 5) == 0)

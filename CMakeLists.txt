@@ -52,6 +52,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Peripherials/Src/im948_CMD.c
     Peripherials/Src/sensor_process.c
     Peripherials/Src/MS5837_lib.c
+    Peripherials/Src/baro_adc.c
 )
 
 # Add include paths
