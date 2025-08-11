@@ -109,6 +109,22 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         printf("System reset command received\r\n");
         NVIC_SystemReset();  // 执行系统重置
     }
+    else if (strncmp((char*)command, "power_on", 8) == 0)
+    {
+        // 开机命令
+        power_on();
+        LEDstatus_on();  // 打开状态灯
+        printf("Power on command received\r\n");
+        // Add code to handle power on functionality here
+    }
+    else if (strncmp((char*)command, "power_off", 9) == 0)
+    {
+        // 关机命令
+        power_off();
+        LEDstatus_off();  // 关闭状态灯
+        printf("Power off command received\r\n");
+        // Add code to handle power off functionality here
+    }
     else
     {
         // 未知命令

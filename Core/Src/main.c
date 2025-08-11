@@ -139,27 +139,7 @@ int main(void)
     UART1_DataHandler(); // 处理UART1蓝牙调试命令
     MS5837_Process(&hi2c1, &MS5837_info_t); // 处理MS5837传感器数据
 
-    // 获取当前IMU和MS5837数据
-    // IMU_Data_t* imu = IMU_GetData();
-    // MS5837_Data_t* ms5837 = MS5837_GetData();
-    // 获取传感器内部的详细数据
-//     MS5837_t* sensor_details = &MS5837_info_t;
 
-    // //  打印原始ADC值和计算出的毫巴值
-    // printf("D1(Pressure ADC): %ld, D2(Temp ADC): %ld, Pressure(mbar): %.2f\r\n",
-    //       sensor_details->pressure_D1,
-    //       sensor_details->temperature_D2,
-    //       sensor_details->pressure_mbar);
-
-    // printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm\r\n", 
-    //       imu->angleX, imu->angleY, imu->angleZ,
-    //       imu->accelX, imu->accelY, imu->accelZ,
-    //       ms5837->temperature, ms5837->depth);
-
-    // HAL_Delay(1000);
-
-    // HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8);
-    // HAL_Delay(500); // 延时500ms
     
 
     /* USER CODE END WHILE */
