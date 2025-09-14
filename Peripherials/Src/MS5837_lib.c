@@ -283,14 +283,11 @@ void MS5837_Process( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor)
 			// 更新全局MS5837数据结构
 			g_ms5837_data.temperature = sensor->temperature_celsius;
 			g_ms5837_data.depth = calculated_depth;
+			g_ms5837_data.pressure_water = sensor->pressure_mbar*0.1; // 绝对压力,转换为kPa
 			g_ms5837_data.timestamp = HAL_GetTick();
 			g_ms5837_data.data_valid = true;
-			
 			// 处理深度校准逻辑
-
-			
 			sensor -> state = START_CONVERT_D1;
 			break;
 	}
-	
 }

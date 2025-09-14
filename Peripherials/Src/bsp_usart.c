@@ -96,11 +96,11 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         printf("  IMU Valid: %s\r\n", IMU_GetData()->data_valid ? "Yes" : "No");
         printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
         printf("  BARO(ADC) Valid: %s\r\n", baro->data_valid ? "Yes" : "No");
-        printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm | BARO: %.1fkPa (%.3fV, raw=%u)\r\n", 
+        printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm P=%.2fkPa | BARO: %.2fkPa (%.3fV, raw=%u)\r\n", 
             imu->angleX, imu->angleY, imu->angleZ,
             imu->accelX, imu->accelY, imu->accelZ,
-            ms5837->temperature, ms5837->depth,
-            baro->pressure_kpa, baro->voltage_v, baro->raw);
+            ms5837->temperature, ms5837->depth, ms5837->pressure_water, 
+            baro->pressure_bag, baro->voltage_v, baro->raw);
 
     }
     else if (strncmp((char*)command, "reset", 5) == 0)

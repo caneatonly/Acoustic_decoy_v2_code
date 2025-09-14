@@ -8,7 +8,7 @@
 
 // 气压传感器（模拟量）数据结构
 typedef struct {
-    float pressure_kpa;   // 计算后的压力值 (kPa)
+    float pressure_bag;   // 计算后的压力值 (kPa)
     float voltage_v;      // 当前电压值 (V)
     uint16_t raw;         // 原始ADC值 (0-4095)
     uint32_t timestamp;   // 更新时间戳 (ms)

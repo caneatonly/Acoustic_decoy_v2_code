@@ -14,6 +14,7 @@
 typedef struct {
     float temperature;       // 温度值 (°C)
     float depth;            // 深度值 (m)
+    float pressure_water;   // 水下压力 (kPa,绝对压力)
     uint32_t timestamp;     // 数据时间戳 (系统tick)
     bool data_valid;        // 数据有效性标志
 } MS5837_Data_t;
