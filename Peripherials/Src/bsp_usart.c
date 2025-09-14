@@ -150,7 +150,6 @@ int UART_Write(uint8_t *buf, int Len)
     * 处理不同UART实例的接收数据：
     * - USART1: 蓝牙调试命令接收与状态发送
     * - USART2: IMU数据接收
-    * - USART3: MS5837深度传感器数据接收 
 */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 

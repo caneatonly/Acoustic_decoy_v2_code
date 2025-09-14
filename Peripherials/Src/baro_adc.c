@@ -38,7 +38,11 @@ static BaroADC_Data_t g_baro_data = {0};
 static inline float clampf(float x, float a, float b){ return (x < a) ? a : (x > b) ? b : x; }
 
 static uint16_t avg_u16(const uint16_t* a, uint8_t n){
-    uint32_t s = 0; for(uint8_t i=0;i<n;i++) s += a[i]; return (uint16_t)(s / n);
+    uint32_t s = 0; 
+    for (uint8_t i = 0; i < n; i++) {
+    s += a[i];
+    }
+return (uint16_t)(s / n);
 }
 
 static void baroadc_update_from_raw(uint16_t raw)

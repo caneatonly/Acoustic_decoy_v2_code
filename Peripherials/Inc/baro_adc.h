@@ -17,9 +17,9 @@ typedef struct {
 
 // 初始化与参数设置
 void BaroADC_Init(ADC_HandleTypeDef* hadc);
-void BaroADC_SetVref(float vref);
-void BaroADC_SetMap(float v_min, float v_max, float p_min_kpa, float p_max_kpa);
-void BaroADC_SetCal(float p_offset_kpa, float p_scale);
+void BaroADC_SetVref(float vref); //设置参考电压
+void BaroADC_SetMap(float v_min, float v_max, float p_min_kpa, float p_max_kpa); //设置最小最大
+void BaroADC_SetCal(float p_offset_kpa, float p_scale); //设置压力校准
 
 // 数据访问
 BaroADC_Data_t* BaroADC_GetData(void);
