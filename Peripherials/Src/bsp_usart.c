@@ -5,6 +5,7 @@
 #include <string.h>
 #include "stdio.h"
 #include "baro_adc.h"
+#include "control_algorithm.h"
 
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -125,12 +126,97 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         printf("Power off command received\r\n");
         // Add code to handle power off functionality here
     }
+    else if (strncmp((char*)command, "set kp ", 7) == 0)
+    {
+        float v;
+        if (sscanf((char*)command+7, "%f", &v) == 1)
+        {
+            Valve_ControlAlgorithm_SetGains(v, -1.0f);
+            printf("Kp set to %.4f\r\n", v);
+        }
+        else
+        {
+            printf("Usage: set kp <value>\r\n");
+        }
+    }
+    else if (strncmp((char*)command, "set kd ", 7) == 0)
+    {
+        float v;
+        if (sscanf((char*)command+7, "%f", &v) == 1)
+        {
+            Valve_ControlAlgorithm_SetGains(-1.0f, v);
+            printf("Kd set to %.4f\r\n", v);
+        }
+        else
+        {
+            printf("Usage: set kd <value>\r\n");
+        }
+    }
+    else if (strncmp((char*)command, "set margin ", 11) == 0)
+    {
+        float v;
+        if (sscanf((char*)command+11, "%f", &v) == 1)
+        {
+            Valve_ControlAlgorithm_SetMargin(v);
+            printf("Margin set to %.3f kPa\r\n", v);
+        }
+        else
+        {
+            printf("Usage: set margin <kPa>\r\n");
+        }
+    }
+    else if (strncmp((char*)command, "set eps ", 8) == 0)
+    {
+        float v;
+        if (sscanf((char*)command+8, "%f", &v) == 1)
+        {
+            Valve_ControlAlgorithm_SetEps(v);
+            printf("Eps set to %.3f kPa\r\n", v);
+        }
+        else
+        {
+            printf("Usage: set eps <kPa>\r\n");
+        }
+    }
+    else if (strncmp((char*)command, "set guard ", 10) == 0)
+    {
+        float v;
+        if (sscanf((char*)command+10, "%f", &v) == 1)
+        {
+            Valve_ControlAlgorithm_SetGuard(v);
+            printf("Guard set to %.1f kPa\r\n", v);
+        }
+        else
+        {
+            printf("Usage: set guard <kPa>\r\n");
+        }
+    }
+    else if (strncmp((char*)command, "set window ", 11) == 0)
+    {
+        unsigned on_ms, off_ms;
+        if (sscanf((char*)command+11, "%u %u", &on_ms, &off_ms) == 2)
+        {
+            Valve_ControlAlgorithm_SetWindow(on_ms, off_ms);
+            printf("Window min_on=%u ms, min_off=%u ms\r\n", on_ms, off_ms);
+        }
+        else
+        {
+            printf("Usage: set window <min_on_ms> <min_off_ms>\r\n");
+        }
+    }
+    else if (strncmp((char*)command, "params", 6) == 0)
+    {
+        ValveControlParams_t p; Valve_ControlAlgorithm_GetParams(&p);
+        printf("Params: Kp=%.4f Kd=%.4f eps=%.3f kPa margin=%.3f kPa guard=%.1f kPa window=%u ms min_on=%u ms min_off=%u ms\r\n",
+            p.Kp, p.Kd, p.eps_kpa, p.dp_margin_kpa, p.guard_over_kpa, p.window_ms, p.Tmin_on_ms, p.Tmin_off_ms);
+    }
     else
     {
         // 未知命令
         printf("Unknown command: %s\r\n", (char*)command);
         printf("Available commands: \r\n");
         printf("motortest, fairing, valve_open, valve_close, status, reset\r\n");
+        printf("set kp <v>, set kd <v>, set margin <kPa>, set eps <kPa>, set guard <kPa>, set window <on off>, params\r\n");
     }
 }
 

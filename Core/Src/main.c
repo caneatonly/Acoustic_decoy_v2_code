@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include "sensor_process.h"
 #include "baro_adc.h"
+#include "control_algorithm.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -123,7 +124,7 @@ int main(void)
 
   // 延时一下让传感器上电准备完毕
   HAL_Delay(1000); // 延时1秒
-  
+
   power_on(); // 打开电源
   MS5837_SetFluidDensity(&MS5837_info_t, 1000.0f); // 设置海水密度为1000 kg/m³
   motorInit(); // 初始化电调
@@ -133,7 +134,6 @@ int main(void)
   printf("Initialization completed. \r\n");
 
   /* USER CODE END 2 */
-
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -143,8 +143,8 @@ int main(void)
     UART1_DataHandler(); // 处理UART1蓝牙调试命令
     MS5837_Process(&hi2c1, &MS5837_info_t); // 处理MS5837传感器数据
 
-
-    
+  // Run control loop (handles internal window & valve pulses)
+    Valve_ControlAlgorithm_Update();
 
     /* USER CODE END WHILE */
 
