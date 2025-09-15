@@ -5,6 +5,7 @@
 
 typedef struct {
     float vref;       // 参考电压，默认3.3V
+    float sensitivity; // 传感器灵敏度，默认0.00167 V/kPa
     float v_min;      // 传感器有效下限，如0.2V
     float v_max;      // 传感器有效上限，如2.7V
     float p_min;      // 对应最小压力(kPa)
@@ -21,11 +22,11 @@ typedef struct {
 
 static BaroADC_Priv_t g_baro_priv = {
     .vref = 3.3f,
-    .v_min = 0.2f,
-    .v_max = 2.7f,
+    .v_min = 0.2f,      // 传感器最小输出电压 (对应0压力)
+    .v_max = 2.705f,    // 传感器最大输出电压 (对应1500kPa: 0.2 + 1500*0.00167)
     .p_min = 0.0f,
     .p_max = 1500.0f,
-    .p_offset = 0.0f,
+    .p_offset = 100.98f, // 默认大气压约101 kPa（后期可修改为初始化时从MS5837数据结构体读取）
     .p_scale  = 1.0f,
     .buf = {0},
     .idx = 0,
@@ -50,18 +51,27 @@ static void baroadc_update_from_raw(uint16_t raw)
     // 原始→电压
     float voltage = (raw * g_baro_priv.vref) / 4095.0f; // 12-bit 满量程
 
-    // 线性映射到压力（含夹紧）
-    float v_clamped = clampf(voltage, g_baro_priv.v_min, g_baro_priv.v_max);
-    float p_span = (g_baro_priv.p_max - g_baro_priv.p_min);
-    float v_span = (g_baro_priv.v_max - g_baro_priv.v_min);
-    float p = g_baro_priv.p_min + (p_span) * (v_clamped - g_baro_priv.v_min) / (v_span > 1e-6f ? v_span : 1e-6f);
+    // 根据传感器公式计算压力：Vout = P*0.00167 + 0.2
+    // 反推公式：P = (Vout - 0.2) / 0.00167
+    float pressure_raw = 0.0f;
+    
+    if (voltage >= g_baro_priv.v_min) {
+        pressure_raw = (voltage - g_baro_priv.v_min) / g_baro_priv.sensitivity; // kPa
+    } else {
+        pressure_raw = 0.0f; // 电压低于零点，压力为0
+    }
 
-    // 应用校准
-    float p_cal = g_baro_priv.p_offset + p * g_baro_priv.p_scale;
-    p_cal = clampf(p_cal, g_baro_priv.p_min, g_baro_priv.p_max);
+    // 应用用户校准，加上大气压
+    float p_cal = g_baro_priv.p_offset + pressure_raw * g_baro_priv.p_scale;
+    
+    // 限制在合理范围内
+    p_cal = clampf(p_cal, 0.0f, g_baro_priv.p_max);
 
-    // 有效性：允许电压有±0.05V容差
-    bool valid = (voltage >= (g_baro_priv.v_min - 0.05f)) && (voltage <= (g_baro_priv.v_max + 0.05f));
+    // 有效性判断：电压应在传感器规格范围内
+    // 根据公式，0.2V对应0压力，假设最大压力1500kPa对应2.705V
+    float v_min_spec = g_baro_priv.v_min; // 0.2V
+    float v_max_spec = g_baro_priv.v_min + g_baro_priv.p_max * g_baro_priv.sensitivity; // 计算最大电压
+    bool valid = (voltage >= (v_min_spec - 0.05f)) && (voltage <= (v_max_spec + 0.05f));
 
     g_baro_data.raw = raw;
     g_baro_data.voltage_v = voltage;
@@ -75,7 +85,8 @@ void BaroADC_Init(ADC_HandleTypeDef* hadc)
     g_baro_priv.hadc = hadc;
     g_baro_data.data_valid = false;
     g_baro_data.timestamp = 0;
-
+    //校准
+    HAL_ADCEx_Calibration_Start(hadc);
     // 启动外部触发+中断（TIM3 TRGO 已在 Cube 配置）
     HAL_ADC_Start_IT(g_baro_priv.hadc);
 }
