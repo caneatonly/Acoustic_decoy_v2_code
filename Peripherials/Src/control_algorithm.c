@@ -8,11 +8,12 @@
 
 #define Twin_ms 1000    // 1s window
 
+float duty; 
 // PD Controller Parameters 
-static float  Kp = 0.04f;           
-static float  Kd = 0.30f;           
-static float  eps = 1.5f;           // 死区，<1.5kPa
-static float  dp_margin = 5.0f;     // 盈余压力，目标压力高于水压的部分，kPa
+static float  Kp_valve = 0.015f;           
+static float  Kd_valve = 0.30f;           //待调整
+static float  eps = 2.0f;           // 死区，<2.0Kpa（容许20cm水深差距）
+static float  dp_margin = 1.0f;     // 盈余压力，目标压力高于水压的部分，kPa	
 
 // EMA and derivative filters
 static float  alpha_bag = 0.20f;    // 0.1~0.3
@@ -22,7 +23,7 @@ static float  beta_d = 0.30f;       // 0.2~0.4 for low-noise derivative
 // Window timing (ms)
 
 static uint32_t  Tmin_on = 100;     // ms
-static uint32_t  Tmin_off = 200;    // ms
+static uint32_t  Tmin_off = 100;    // ms
 
 // Safety
 static float  guard_over_kpa = 30.0f;   // P_bag should never exceed P_water + this
@@ -110,7 +111,7 @@ void Valve_ControlAlgorithm_Update(void)
 	float e = P_target -  P_bag_filt;               // kPa
 
 	// PD control -> duty in [0,1]
-	float duty = (fabsf(e) <  eps) ? 0.0f : ( Kp * e -  Kd *  dP_bag_dt);
+	duty = (fabsf(e) <  eps) ? 0.0f : ( Kp_valve * e -  Kd_valve *  dP_bag_dt);
 	duty = clampf(duty, 0.0f, 1.0f);
 
 	// Safety: hard overpressure guard
@@ -158,8 +159,8 @@ void Valve_ControlAlgorithm_Update(void)
 // Optional: expose simple setters for tuning (can be extended later)
 void Valve_ControlAlgorithm_SetGains(float Kp_new, float Kd_new)
 {
-	if (Kp_new >= 0.0f) Kp = Kp_new;
-	if (Kd_new >= 0.0f) Kd = Kd_new;
+	if (Kp_new >= 0.0f) Kp_valve = Kp_new;
+	if (Kd_new >= 0.0f) Kd_valve = Kd_new;
 }
 
 void Valve_ControlAlgorithm_SetMargin(float dp_margin_kpa)
@@ -198,8 +199,8 @@ void Valve_ControlAlgorithm_SetGuard(float over_kpa)
 void Valve_ControlAlgorithm_GetParams(ValveControlParams_t* out)
 {
 	if (!out) return;
-	out->Kp = Kp;
-	out->Kd = Kd;
+	out->Kp = Kp_valve;
+	out->Kd = Kd_valve;
 	out->eps_kpa = eps;
 	out->dp_margin_kpa = dp_margin;
 	out->guard_over_kpa = guard_over_kpa;

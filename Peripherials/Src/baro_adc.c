@@ -22,6 +22,7 @@ typedef struct {
 
 static BaroADC_Priv_t g_baro_priv = {
     .vref = 3.3f,
+    .sensitivity = 0.00167f,
     .v_min = 0.2f,      // 传感器最小输出电压 (对应0压力)
     .v_max = 2.705f,    // 传感器最大输出电压 (对应1500kPa: 0.2 + 1500*0.00167)
     .p_min = 0.0f,

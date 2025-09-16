@@ -54,7 +54,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+extern float duty; // 从control_algorithm.c引用
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -144,8 +144,9 @@ int main(void)
     MS5837_Process(&hi2c1, &MS5837_info_t); // 处理MS5837传感器数据
 
   // Run control loop (handles internal window & valve pulses)
-    Valve_ControlAlgorithm_Update();
-
+    // Valve_ControlAlgorithm_Update();
+    // printf("Duty Cycle: %.2f\r\n", duty);
+    // HAL_Delay(10); // 10ms周期
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
