@@ -54,12 +54,22 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Peripherials/Src/MS5837_lib.c
     Peripherials/Src/baro_adc.c
     Peripherials/Src/control_algorithm.c
+    Controls/Src/depth_estimator.c
+    Controls/Src/mission_manager.c
+    Controls/Src/depth_cascaded_ctrl.c
+    Controls/Src/balloon_state.c
+    Controls/Src/safety_monitor.c
+    Controls/Src/telemetry.c
+    Controls/Src/param_registry.c
+    Controls/Src/actuators.c
+    Controls/Src/control_loop.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     Peripherials/Inc
+    Controls/Inc
 
 )
 

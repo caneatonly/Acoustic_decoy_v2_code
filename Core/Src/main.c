@@ -33,6 +33,8 @@
 #include "sensor_process.h"
 #include "baro_adc.h"
 #include "control_algorithm.h"
+// Control framework
+#include "control_loop.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,6 +57,7 @@
 
 /* USER CODE BEGIN PV */
 extern float duty; // 从control_algorithm.c引用
+const uint32_t CTRL_PERIOD_MS = 10u; // 控制循环周期10ms
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -125,11 +128,15 @@ int main(void)
   // 延时一下让传感器上电准备完毕
   HAL_Delay(1000); // 延时1秒
 
-  power_on(); // 打开电源
+  power_on(); // 打开电源 12V
   MS5837_SetFluidDensity(&MS5837_info_t, 1000.0f); // 设置海水密度为1000 kg/m³
   motorInit(); // 初始化电调
   imuInit(); // 初始化IMU
   MS5837_Init(&hi2c1,&MS5837_info_t, 50); // 初始化MS5837压力传感器
+
+    // Initialize control loop modules
+  ControlLoop_Init();
+  uint32_t last_ctrl_ms = HAL_GetTick();
 
   printf("Initialization completed. \r\n");
 
@@ -138,15 +145,17 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    //Handlers
-    ProcessIMUData(); // 处理IMU数据
-    UART1_DataHandler(); // 处理UART1蓝牙调试命令
-    MS5837_Process(&hi2c1, &MS5837_info_t); // 处理MS5837传感器数据
+  // Data handlers
+  ProcessIMUData(); // IMU数据处理
+  UART1_DataHandler(); // 串口命令处理
+  MS5837_Process(&hi2c1, &MS5837_info_t);
 
-  // Run control loop (handles internal window & valve pulses)
-    // Valve_ControlAlgorithm_Update();
-    // printf("Duty Cycle: %.2f\r\n", duty);
-    // HAL_Delay(10); // 10ms周期
+  // 10ms control loop
+  uint32_t now = HAL_GetTick();
+  if((uint32_t)(now - last_ctrl_ms) >= CTRL_PERIOD_MS){
+    last_ctrl_ms += CTRL_PERIOD_MS; // catch-up simple (could loop if drift)
+    ControlLoop_RunIteration(now);
+  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

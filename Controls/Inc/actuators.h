@@ -1,0 +1,18 @@
+#pragma once
+#include <stdint.h>
+#include <stdbool.h>
+#ifdef __cplusplus
+extern "C" { 
+#endif
+
+// Thin wrappers around existing low-level functions for decoupling
+void Actuators_Init(void);
+void Actuators_SetMotorPwm(int16_t pwm);
+void Actuators_FairingRelease(void);
+void Actuators_ValveOpen(void);
+void Actuators_ValveClose(void);
+void Actuators_ValveOpenFor(uint32_t ms);
+
+#ifdef __cplusplus
+}
+#endif
