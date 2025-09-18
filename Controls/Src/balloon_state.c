@@ -1,0 +1,36 @@
+#include "balloon_state.h"
+#include "control_config.h"
+#include <math.h>
+#include <stdbool.h>
+
+void Balloon_Init(balloon_status_t *b){
+    if(!b) return; 
+    b->state=BALLOON_INFLATING; 
+    b->stable_windows=0; 
+    b->last_transition_ms=0; 
+}
+
+void Balloon_Update(balloon_status_t *b, float duty, float p_bag, float p_water, float dP_dt, uint32_t now_ms){
+    if(!b) return; (void)p_bag; (void)p_water; 
+    switch(b->state){
+        case BALLOON_INFLATING:// 充气中，如果占空比为0且压力变化率足够小，进入稳定中
+            if(duty==0.0f && fabsf(dP_dt) < CTRL_BALLOON_STABLE_DPDt_KPA_S){
+                b->state=BALLOON_STABILIZING; 
+                b->last_transition_ms=now_ms; 
+            }
+            break;
+        case BALLOON_STABILIZING:// 稳定中，如果占空比为0且压力变化率足够小，累计稳定窗口计数，达到要求后进入稳定完成
+            if(duty==0.0f && fabsf(dP_dt) < CTRL_BALLOON_STABLE_DPDt_KPA_S){
+                if(++b->stable_windows >= CTRL_BALLOON_STABLE_WINDOWS){ 
+                    b->state=BALLOON_STABLE; 
+                    b->last_transition_ms=now_ms; 
+                }
+            } else { 
+                b->stable_windows=0; 
+            }
+            break;
+        case BALLOON_STABLE: default: break;
+    }
+}
+
+

@@ -9,17 +9,18 @@ Email: zyshine3@sjtu.edu.cn
 */
 
 // Depth bands / thresholds
-#define CTRL_PREP_DEPTH_TARGET_M          (5.0f)     // example placeholder
-#define CTRL_PREP_BAND_IN_M               (0.30f)
-#define CTRL_PREP_BAND_OUT_M              (0.40f)
-#define CTRL_V_NEAR_ZERO_MPS              (0.02f)
-#define CTRL_V_NEAR_ZERO_HOLD_MS          (1500u)
+#define CTRL_DEPTH_TARGET_M             (5.0f)     // 目标深度
+#define CTRL_PREP_BAND_M                (0.30f)    // 深度预备区宽度
+#define CTRL_V_NEAR_ZERO_MPS            (0.02f)   // 速度接近零阈值
+#define CTRL_V_NEAR_ZERO_HOLD_MS        (1500u)
 
 // Balloon stability
 #define CTRL_BALLOON_DP_MARGIN_KPA        (1.0f)
 #define CTRL_BALLOON_STABLE_DP_ERR_KPA    (0.3f)
 #define CTRL_BALLOON_STABLE_DPDt_KPA_S    (0.5f)
 #define CTRL_BALLOON_STABLE_WINDOWS       (3u)
+// Inflation completion criterion
+#define CTRL_BALLOON_DUTY_DONE_TH         (0.05f)
 
 // PID defaults (占位！！需要进行参数整定)
 // Approach模式下 串级PID增益

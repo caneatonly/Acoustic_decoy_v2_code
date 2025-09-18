@@ -148,7 +148,7 @@ int main(void)
   // Data handlers
   ProcessIMUData(); // IMU数据处理
   UART1_DataHandler(); // 串口命令处理
-  MS5837_Process(&hi2c1, &MS5837_info_t);
+  MS5837_Process(&hi2c1, &MS5837_info_t); //深度传感器数据处理
 
   // 10ms control loop
   uint32_t now = HAL_GetTick();

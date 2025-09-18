@@ -2,6 +2,8 @@
 #include "control_config.h"
 #include <string.h>
 #include <stdbool.h>
+#include <math.h>
+#include "balloon_state.h"
 
 // 入水判据参数
 
@@ -20,7 +22,7 @@ void Mission_Init(float target_depth_m){
 }
 
 // 任务模式切换逻辑
-void Mission_Update(uint32_t now_ms, float depth_m, float depth_vel_mps){
+void Mission_Update(uint32_t now_ms, float depth_m, float depth_vel_mps, balloon_state_t balloon_state){
     (void)depth_vel_mps;
     if(!g_status.started) return;
 
@@ -42,11 +44,33 @@ void Mission_Update(uint32_t now_ms, float depth_m, float depth_vel_mps){
                 g_status.state = MISSION_FAILSAFE;
                 g_status.state_enter_ms = now_ms;
             }
+
             break; }
-        case MISSION_APPROACH:
-            // 后续添加：进入预备带检测，触发 PREP_HOLD 等
-            break;
-        case MISSION_PREP_HOLD:
+        case MISSION_APPROACH: {
+            // 预备带进入判据：|z - z_target| <= CTRL_PREP_BAND_M -> 进入 PREP_HOLD
+            float dz = depth_m - g_status.target_depth_m;
+            if (fabsf(dz) <= CTRL_PREP_BAND_M){
+                g_status.prev_state = g_status.state;
+                g_status.state = MISSION_PREP_HOLD;
+                g_status.state_enter_ms = now_ms;
+            }
+            break; }
+        case MISSION_PREP_HOLD: {
+            // 预备带退出判据：|z - z_target| > CTRL_PREP_BAND_M -> 回到 APPROACH 重新逼近
+            float dz = depth_m - g_status.target_depth_m;
+            if (fabsf(dz) > CTRL_PREP_BAND_M){
+                g_status.prev_state = g_status.state;
+                g_status.state = MISSION_APPROACH;
+                g_status.state_enter_ms = now_ms;
+                break;
+            }
+            // 气囊完全稳定后 -> 进入保深
+            if (balloon_state == BALLOON_STABLE){
+                g_status.prev_state = g_status.state;
+                g_status.state = MISSION_DEPTH_HOLD;
+                g_status.state_enter_ms = now_ms;
+            }
+            break; }
         case MISSION_INFLATE_VERIFY:
         case MISSION_DEPTH_HOLD:
         case MISSION_DWELL_MONITOR:
@@ -74,4 +98,14 @@ void Mission_AbortFailsafe(const char *reason){
 // 任务状态查询接口
 const mission_status_t* Mission_GetStatus(void){
     return &g_status; 
+}
+
+bool Mission_HasStateChanged(void){
+    return g_status.prev_state != g_status.state;
+}
+
+void Mission_AckStateChange(void){
+    // After the control loop handles one-shot actions for a new state,
+    // align prev_state to state so HasStateChanged() returns false until next transition.
+    g_status.prev_state = g_status.state;
 }

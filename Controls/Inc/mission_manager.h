@@ -2,6 +2,7 @@
 #define MISSION_MANAGER_H
 #include <stdint.h>
 #include <stdbool.h>
+#include "balloon_state.h"
 
 typedef enum {
     MISSION_INIT = 0,
@@ -24,10 +25,18 @@ typedef struct {
 } mission_status_t;
 
 void Mission_Init(float target_depth_m);
-void Mission_Update(uint32_t now_ms, float depth_m, float depth_vel_mps);
+void Mission_Update(uint32_t now_ms, float depth_m, float depth_vel_mps, balloon_state_t balloon_state);
 void Mission_RequestRecovery(void);
 void Mission_AbortFailsafe(const char *reason);
 const mission_status_t* Mission_GetStatus(void);
+// Helper to move to depth hold
+void Mission_GotoDepthHold(uint32_t now_ms);
+
+// State transition helpers
+// Returns true if mission state changed since last acknowledge
+bool Mission_HasStateChanged(void);
+// Acknowledge the state change so future calls return false until next change
+void Mission_AckStateChange(void);
 
 
 #endif // MISSION_MANAGER_H

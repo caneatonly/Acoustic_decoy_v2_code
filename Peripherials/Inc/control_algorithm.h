@@ -2,6 +2,7 @@
 #define CONTROL_ALGORITHM_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,6 +26,10 @@ void Valve_ControlAlgorithm_Init(void);
 // 更新控制算法状态，计算并执行阀门控制，在main函数loop中调用
 void Valve_ControlAlgorithm_Update(void);
 
+// 启停充气控制（禁用时立即关闭阀门并取消任务）
+void Valve_ControlAlgorithm_Enable(bool enable);
+bool Valve_ControlAlgorithm_IsEnabled(void);
+
 // 调参API
 void Valve_ControlAlgorithm_SetGains(float Kp, float Kd);
 void Valve_ControlAlgorithm_SetMargin(float dp_margin_kpa);
@@ -32,6 +37,12 @@ void Valve_ControlAlgorithm_SetWindow(uint32_t min_on_ms, uint32_t min_off_ms);
 void Valve_ControlAlgorithm_SetEps(float eps_kpa);
 void Valve_ControlAlgorithm_SetGuard(float over_kpa);
 void Valve_ControlAlgorithm_GetParams(ValveControlParams_t* out);
+
+// Telemetry getters
+float Valve_GetDuty(void);
+float Valve_GetPbag(void);
+float Valve_GetPwater(void);
+float Valve_GetdPdt(void);
 
 #ifdef __cplusplus
 }

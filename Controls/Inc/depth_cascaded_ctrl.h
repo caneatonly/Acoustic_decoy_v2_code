@@ -27,7 +27,7 @@ typedef struct {
 
 typedef struct {
     depth_ctrl_mode_t mode; //Approach or Hold
-    float z_target; // 目标深度
+    float z_target; // 目标深度 
     float v_ref;      // 速度参考
     float v_ref_prev; // 上一个速度参考
     float integ_z;  // 深度环积分
@@ -38,11 +38,16 @@ typedef struct {
     uint32_t last_update_ms; // 上一次更新的时间戳
     depth_ctrl_config_t cfg;
     bool initialized;
+    // 强制速度参考（用于PREP_HOLD阶段将速度参考置零）
+    bool force_vref_active;
+    float force_vref_value;
 } depth_ctrl_t; // 控制器状态结构体
 
 void DepthCtrl_Init(depth_ctrl_t *ctrl, const depth_ctrl_config_t *cfg, float z_target_init);
 void DepthCtrl_SetMode(depth_ctrl_t *ctrl, depth_ctrl_mode_t mode);
 void DepthCtrl_SetTarget(depth_ctrl_t *ctrl, float z_target);
+// 在某些阶段强制速度参考为固定值（例如0），enable=false恢复正常外环控制
+void DepthCtrl_ForceVref(depth_ctrl_t *ctrl, bool enable, float v_ref_fixed);
 void DepthCtrl_Update(depth_ctrl_t *ctrl, float z_meas, float v_meas, uint32_t now_ms);
 int16_t DepthCtrl_GetPwm(const depth_ctrl_t *ctrl);
 float DepthCtrl_GetVref(const depth_ctrl_t *ctrl);

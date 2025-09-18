@@ -8,7 +8,7 @@
 
 #define Twin_ms 1000    // 1s window
 
-float duty; 
+static float duty; 
 // PD Controller Parameters 
 static float  Kp_valve = 0.015f;           
 static float  Kd_valve = 0.30f;           //待调整
@@ -26,10 +26,11 @@ static uint32_t  Tmin_on = 100;     // ms
 static uint32_t  Tmin_off = 100;    // ms
 
 // Safety
-static float  guard_over_kpa = 30.0f;   // P_bag should never exceed P_water + this
+static float  guard_over_kpa = 30.0f;   // !!气囊压力永远不能大于 p_water + 30kPa
 
 // 状态变量
 static bool initialized = false;
+static bool enabled = false;      // 是否启用充气功能，由状态机赋值
 static uint32_t  last_update_ms = 0;
 static uint32_t  win_start_ms = 0;
 static uint32_t  locked_on_ms = 0;   // on-time locked at window start
@@ -73,10 +74,18 @@ void Valve_ControlAlgorithm_Init(void)
 
 void Valve_ControlAlgorithm_Update(void)
 {
-    if (!initialized) {
-        Valve_ControlAlgorithm_Init();
-        initialized = true;
-    }
+	// Gate: when disabled, keep valve closed and progress job state only
+	if (!enabled) {
+		valve_close();
+		valve_pulse_task();
+		return;
+	}
+
+	// Initialize only when enabled to seed filters with up-to-date readings
+	if (!initialized) {
+		Valve_ControlAlgorithm_Init();
+		initialized = true;
+	}
 
 	uint32_t now = HAL_GetTick();
 	float dt = (now -  last_update_ms) * 0.001f; // seconds
@@ -156,6 +165,27 @@ void Valve_ControlAlgorithm_Update(void)
 	valve_pulse_task();
 }
 
+void Valve_ControlAlgorithm_Enable(bool en)
+{
+	enabled = en;
+	if (!enabled) {
+		// Immediately ensure valve is closed, cancel any pending job, and mark uninitialized
+		valve_close();
+		ValvePulseJob_t* job = Valve_GetData();
+		if (job) job->active = false;
+		initialized = false;
+	} else {
+		// On enable, re-initialize to capture current sensor baseline
+		Valve_ControlAlgorithm_Init();
+		initialized = true;
+	}
+}
+
+bool Valve_ControlAlgorithm_IsEnabled(void)
+{
+	return enabled;
+}
+
 // Optional: expose simple setters for tuning (can be extended later)
 void Valve_ControlAlgorithm_SetGains(float Kp_new, float Kd_new)
 {
@@ -208,4 +238,10 @@ void Valve_ControlAlgorithm_GetParams(ValveControlParams_t* out)
 	out->Tmin_on_ms = Tmin_on;
 	out->Tmin_off_ms = Tmin_off;
 }
+
+// Lightweight getters to expose telemetry for balloon-state and logging
+float Valve_GetDuty(void) { return duty; }
+float Valve_GetPbag(void) { return P_bag_filt; }
+float Valve_GetPwater(void) { return P_water_filt; }
+float Valve_GetdPdt(void) { return dP_bag_dt; }
 
