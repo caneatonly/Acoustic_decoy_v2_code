@@ -12,6 +12,7 @@ void Actuators_FairingRelease(void);
 void Actuators_ValveOpen(void);
 void Actuators_ValveClose(void);
 void Actuators_ValveOpenFor(uint32_t ms);
+void Actuators_LedToggle(void);
 
 #ifdef __cplusplus
 }

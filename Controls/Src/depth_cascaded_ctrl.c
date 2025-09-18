@@ -43,7 +43,8 @@ void DepthCtrl_ForceVref(depth_ctrl_t *ctrl, bool enable, float v_ref_fixed){
 // 控制器更新函数
 void DepthCtrl_Update(depth_ctrl_t *ctrl, float z_meas, float v_meas, uint32_t now_ms){
     
-    if(!ctrl||!ctrl->initialized) return; (void)now_ms;
+    if(!ctrl||!ctrl->initialized) {return;}
+    (void)now_ms;
 
     const pid_gains_t *gz; 
     const pid_gains_t *gv; 

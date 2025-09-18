@@ -1,15 +1,13 @@
 #include "mission_manager.h"
+#include "actuators.h"
 #include "control_config.h"
 #include <string.h>
 #include <stdbool.h>
 #include <math.h>
 #include "balloon_state.h"
+#include "stm32f1xx_hal.h"
+#include <stdio.h>
 
-// 入水判据参数
-
-
-// APPROACH 阶段进入条件: 已入水
-// 其余阶段占位后续补充
 
 static mission_status_t g_status = {0};
 
@@ -22,8 +20,9 @@ void Mission_Init(float target_depth_m){
 }
 
 // 任务模式切换逻辑
-void Mission_Update(uint32_t now_ms, float depth_m, float depth_vel_mps, balloon_state_t balloon_state){
-    (void)depth_vel_mps;
+void Mission_Update(uint32_t now_ms, float depth_m, float vel_mps, balloon_state_t balloon_state){
+   
+    // 任务未启动则不进行状态更新
     if(!g_status.started) return;
 
     switch(g_status.state){
@@ -47,25 +46,25 @@ void Mission_Update(uint32_t now_ms, float depth_m, float depth_vel_mps, balloon
 
             break; }
         case MISSION_APPROACH: {
-            // 预备带进入判据：|z - z_target| <= CTRL_PREP_BAND_M -> 进入 PREP_HOLD
+            // 预备带进入判据：|z - z_target| <= CTRL_PREP_BAND_ENTER_M -> 进入 PREP_HOLD
             float dz = depth_m - g_status.target_depth_m;
-            if (fabsf(dz) <= CTRL_PREP_BAND_M){
+            if (fabsf(dz) <= CTRL_PREP_BAND_ENTER_M){
                 g_status.prev_state = g_status.state;
                 g_status.state = MISSION_PREP_HOLD;
                 g_status.state_enter_ms = now_ms;
             }
             break; }
         case MISSION_PREP_HOLD: {
-            // 预备带退出判据：|z - z_target| > CTRL_PREP_BAND_M -> 回到 APPROACH 重新逼近
+            // 预备带退出判据：|z - z_target| > CTRL_PREP_BAND_EXIT_M -> 回到 APPROACH 重新逼近
             float dz = depth_m - g_status.target_depth_m;
-            if (fabsf(dz) > CTRL_PREP_BAND_M){
+            if (fabsf(dz) > CTRL_PREP_BAND_EXIT_M){
                 g_status.prev_state = g_status.state;
                 g_status.state = MISSION_APPROACH;
                 g_status.state_enter_ms = now_ms;
                 break;
             }
             // 气囊完全稳定后 -> 进入保深
-            if (balloon_state == BALLOON_STABLE){
+            if (balloon_state == BALLOON_STABLE && fabsf(vel_mps) < CTRL_V_NEAR_ZERO_MPS) {
                 g_status.prev_state = g_status.state;
                 g_status.state = MISSION_DEPTH_HOLD;
                 g_status.state_enter_ms = now_ms;
@@ -75,7 +74,14 @@ void Mission_Update(uint32_t now_ms, float depth_m, float depth_vel_mps, balloon
         case MISSION_DEPTH_HOLD:
         case MISSION_DWELL_MONITOR:
         case MISSION_RECOVERY_ASCEND:
-        case MISSION_FAILSAFE:
+        case MISSION_FAILSAFE:{
+            while (1) {
+                printf("Mission_Stopped: Water Detect failed ,Entering Failsafe\r\n");
+                Actuators_LedToggle();
+                Actuators_SetMotorPwm(1500); // 停止推进器
+                HAL_Delay(1000);
+            }
+        }
         default:
             break;
     }

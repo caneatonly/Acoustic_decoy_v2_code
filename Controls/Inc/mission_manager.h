@@ -29,8 +29,6 @@ void Mission_Update(uint32_t now_ms, float depth_m, float depth_vel_mps, balloon
 void Mission_RequestRecovery(void);
 void Mission_AbortFailsafe(const char *reason);
 const mission_status_t* Mission_GetStatus(void);
-// Helper to move to depth hold
-void Mission_GotoDepthHold(uint32_t now_ms);
 
 // State transition helpers
 // Returns true if mission state changed since last acknowledge
