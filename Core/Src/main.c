@@ -32,7 +32,7 @@
 #include <stdio.h>
 #include "sensor_process.h"
 #include "baro_adc.h"
-#include "control_algorithm.h"
+#include "valve_ctrl.h"
 // Control framework
 #include "control_loop.h"
 /* USER CODE END Includes */
@@ -56,7 +56,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-extern float duty; // 从control_algorithm.c引用
 const uint32_t CTRL_PERIOD_MS = 10u; // 控制循环周期10ms
 /* USER CODE END PV */
 

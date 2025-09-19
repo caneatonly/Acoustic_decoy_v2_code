@@ -10,8 +10,8 @@ Email: zyshine3@sjtu.edu.cn
 
 // Depth bands / thresholds
 #define CTRL_DEPTH_TARGET_M             (5.0f)     // 目标深度
-#define CTRL_PREP_BAND_ENTER_M                (0.30f)    // 深度预备区宽度
-#define CTRL_PREP_BAND_EXIT_M                 (0.15f)    // 进入预备区阈值
+#define CTRL_PREP_BAND_ENTER_M                (0.30f)    // 进入深度预备区阈值
+#define CTRL_PREP_BAND_EXIT_M                 (0.45f)    // 退出深度预备区阈值
 #define CTRL_V_NEAR_ZERO_MPS            (0.02f)   // 速度接近零阈值，用于判断是否进入HOLD
  
 

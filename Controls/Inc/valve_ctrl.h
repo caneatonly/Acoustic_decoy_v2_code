@@ -1,5 +1,5 @@
-#ifndef CONTROL_ALGORITHM_H
-#define CONTROL_ALGORITHM_H
+#ifndef VALVE_CTRL_H
+#define VALVE_CTRL_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -10,14 +10,14 @@ extern "C" {
 
 // 参数结构体（用于查询当前控制参数）
 typedef struct {
-	float Kp;
-	float Kd;
-	float eps_kpa;             // 死区
-	float dp_margin_kpa;       // 目标超水压裕量
-	float guard_over_kpa;      // 超压硬保护
-	uint32_t window_ms;        // 窗口时长（只读：固定为1000ms）
-	uint32_t Tmin_on_ms;       // 最小开阀时间
-	uint32_t Tmin_off_ms;      // 最小关阀时间
+    float Kp;
+    float Kd;
+    float eps_kpa;             // 死区
+    float dp_margin_kpa;       // 目标超水压裕量
+    float guard_over_kpa;      // 超压硬保护
+    uint32_t window_ms;        // 窗口时长（只读：固定为1000ms）
+    uint32_t Tmin_on_ms;       // 最小开阀时间
+    uint32_t Tmin_off_ms;      // 最小关阀时间
 } ValveControlParams_t;
 
 // 初始化控制算法，重置状态变量
@@ -48,4 +48,4 @@ float Valve_GetdPdt(void);
 }
 #endif
 
-#endif // CONTROL_ALGORITHM_H
+#endif // VALVE_CTRL_H

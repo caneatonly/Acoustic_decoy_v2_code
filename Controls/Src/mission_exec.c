@@ -1,6 +1,6 @@
 #include "mission_exec.h"
 #include "actuators.h"
-#include "control_algorithm.h"
+#include "valve_ctrl.h"
 #include "control_config.h"
 
 void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth_ctrl_t* ctrl, mission_status_t* s)

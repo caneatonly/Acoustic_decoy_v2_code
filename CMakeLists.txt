@@ -53,7 +53,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Peripherials/Src/sensor_process.c
     Peripherials/Src/MS5837_lib.c
     Peripherials/Src/baro_adc.c
-    Peripherials/Src/control_algorithm.c
+    Controls/Src/valve_ctrl.c
     Controls/Src/depth_estimator.c
     Controls/Src/mission_manager.c
     Controls/Src/depth_cascaded_ctrl.c

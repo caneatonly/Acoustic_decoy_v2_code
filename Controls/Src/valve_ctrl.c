@@ -1,5 +1,5 @@
 // PD-based valve control with 1s duty window
-#include "control_algorithm.h"
+#include "valve_ctrl.h"
 
 #include "sensor_process.h"   
 #include "baro_adc.h"         
@@ -12,8 +12,8 @@ static float duty;
 // PD Controller Parameters 
 static float  Kp_valve = 0.015f;           
 static float  Kd_valve = 0.30f;           //待调整
-static float  eps = 2.0f;           // 死区，<2.0Kpa（容许20cm水深差距）
-static float  dp_margin = 1.0f;     // 盈余压力，目标压力高于水压的部分，kPa	
+static float  eps = 2.0f;           // 死区，<2.0Kpa（容忍20cm水深差距）
+static float  dp_margin = 1.0f;     // 盈余压力，目标压力高于水压的部分,kPa	
 
 // EMA and derivative filters
 static float  alpha_bag = 0.20f;    // 0.1~0.3
@@ -244,4 +244,3 @@ float Valve_GetDuty(void) { return duty; }
 float Valve_GetPbag(void) { return P_bag_filt; }
 float Valve_GetPwater(void) { return P_water_filt; }
 float Valve_GetdPdt(void) { return dP_bag_dt; }
-

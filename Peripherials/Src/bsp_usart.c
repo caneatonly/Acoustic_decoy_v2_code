@@ -5,7 +5,7 @@
 #include <string.h>
 #include "stdio.h"
 #include "baro_adc.h"
-#include "control_algorithm.h"
+#include "valve_ctrl.h"
 
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)

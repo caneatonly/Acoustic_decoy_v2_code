@@ -8,7 +8,7 @@
 #include "depth_cascaded_ctrl.h"
 #include "actuators.h"
 #include "mission_exec.h"
-#include "control_algorithm.h"
+#include "valve_ctrl.h"
 #include "balloon_state.h"
 #include <stdint.h>
 #include <stdbool.h>
