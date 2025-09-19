@@ -111,7 +111,7 @@ void BaroADC_SetCal(float p_offset_kpa, float p_scale)
     if (p_scale > 0.1f && p_scale < 10.0f) g_baro_priv.p_scale = p_scale;
 }
 
-BaroADC_Data_t* BaroADC_GetData(void)
+const BaroADC_Data_t* BaroADC_GetData(void)
 {
     return &g_baro_data;
 }

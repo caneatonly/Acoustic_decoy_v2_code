@@ -89,13 +89,13 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
     }
     else if (strncmp((char*)command, "status", 6) == 0)
     {
-        IMU_Data_t* imu = IMU_GetData();
-        MS5837_Data_t* ms5837 = MS5837_GetData();
-        BaroADC_Data_t* baro = BaroADC_GetData();
+    IMU_Data_t* imu = IMU_GetData();
+    const MS5837_Data_t* ms5837 = MS5837_GetData();
+    const BaroADC_Data_t* baro = BaroADC_GetData();
         // 状态查询命令
         printf("System Status:\r\n");
         printf("  IMU Valid: %s\r\n", IMU_GetData()->data_valid ? "Yes" : "No");
-        printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
+    printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
         printf("  BARO(ADC) Valid: %s\r\n", baro->data_valid ? "Yes" : "No");
         printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm P=%.2fkPa | BARO: %.2fkPa (%.3fV, raw=%u)\r\n", 
             imu->angleX, imu->angleY, imu->angleZ,

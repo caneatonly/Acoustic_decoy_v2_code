@@ -44,6 +44,10 @@ float Valve_GetPbag(void);
 float Valve_GetPwater(void);
 float Valve_GetdPdt(void);
 
+// Non-blocking valve pulse scheduling is owned by valve control layer
+void valve_open_for(uint32_t ms);
+void valve_pulse_task(void);
+
 #ifdef __cplusplus
 }
 #endif

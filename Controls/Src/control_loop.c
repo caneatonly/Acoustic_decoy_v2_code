@@ -53,7 +53,7 @@ void ControlLoop_Init(void){
 void ControlLoop_RunIteration(uint32_t now_ms){
 
     // 深度估计器更新
-    MS5837_Data_t *ms = MS5837_GetData();
+    const MS5837_Data_t *ms = MS5837_GetData();
     if(ms && ms->data_valid){
         DepthEst_Update(&g_depth_est, ms->depth, now_ms);
     }

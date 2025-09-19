@@ -21,7 +21,7 @@ void BaroADC_SetVref(float vref); //设置参考电压
 void BaroADC_SetMap(float v_min, float v_max, float p_min_kpa, float p_max_kpa); //设置最小最大
 void BaroADC_SetCal(float p_offset_kpa, float p_scale); //设置压力校准
 
-// 数据访问
-BaroADC_Data_t* BaroADC_GetData(void);
+// 数据访问（只读快照）
+const BaroADC_Data_t* BaroADC_GetData(void);
 
 #endif /* __BARO_ADC_H */

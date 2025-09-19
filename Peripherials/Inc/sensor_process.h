@@ -31,26 +31,9 @@ typedef struct {
     bool data_valid;        // 数据有效性标志
 } IMU_Data_t;
 
-// 电机控制数据结构
-typedef struct {
-    uint16_t current_pwm;   // 当前PWM值
-    uint16_t target_pwm;    // 目标PWM值
-    bool motor_enabled;     // 电机使能状态
-    uint32_t last_update;   // 最后更新时间
-} Motor_Control_t;
-
-// 电磁阀“非阻塞定时开”任务
-typedef struct {
-    bool  active;           // 是否正在计时
-    uint32_t t_start_ms;       // 开启时刻
-    uint32_t duration_ms;      // 持续时长
-} ValvePulseJob_t;
-
 // 全局实例声明
 extern MS5837_Data_t g_ms5837_data;
 extern IMU_Data_t g_imu_data;
-extern Motor_Control_t g_motor_control;
-extern ValvePulseJob_t g_valve_job;
 
 // 传感器初始化函数
 void SensorSystem_Init(void);
@@ -83,14 +66,8 @@ void valve_close(void);
 void motor_test(void); // 电机测试函数
 void SetMotorSpeed(uint16_t speed); // 电机速度设置函数/
 
-// 电磁阀非阻塞定时开函数
-void valve_open_for(uint32_t ms);
-void valve_pulse_task(void); // 任务函数,在主循环中调用
-
 // 数据访问接口
-MS5837_Data_t* MS5837_GetData(void);
+const MS5837_Data_t* MS5837_GetData(void);
 IMU_Data_t* IMU_GetData(void);
-Motor_Control_t* Motor_GetData(void);
-ValvePulseJob_t* Valve_GetData(void);
 
 #endif /* __SENSOR_PROCESS_H */

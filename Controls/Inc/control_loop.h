@@ -5,7 +5,7 @@
 extern "C" { 
 #endif
 
-// Called from main while loop periodically (e.g. every 10ms dispatcher)
+// 由main loop调用
 void ControlLoop_Init(void);
 void ControlLoop_RunIteration(uint32_t now_ms);
 

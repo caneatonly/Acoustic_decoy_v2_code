@@ -5,7 +5,8 @@
 extern "C" { 
 #endif
 
-// Thin wrappers around existing low-level functions for decoupling
+// 封装bsp层的执行函数，控制层仅调用此处的API
+
 void Actuators_Init(void);
 void Actuators_SetMotorPwm(int16_t pwm);
 void Actuators_FairingRelease(void);

@@ -3,6 +3,7 @@
 
 #include "sensor_process.h"   
 #include "baro_adc.h"         
+#include "stm32f1xx_hal.h"
 
 #include <math.h>
 
@@ -40,6 +41,14 @@ static float  P_water_filt = 0.0f;
 static float  dP_bag_dt = 0.0f;      // filtered derivative kPa/s
 static float  P_bag_prev = 0.0f;
 
+// Local non-blocking valve pulse job (moved from peripherals layer)
+typedef struct {
+	uint8_t active;
+	uint32_t t_start_ms;
+	uint32_t duration_ms;
+} ValvePulseJob_t;
+static ValvePulseJob_t g_valve_job = {0};
+
 // Clamp helper
 static inline float clampf(float x, float a, float b) { return (x < a) ? a : (x > b) ? b : x; }
 
@@ -65,10 +74,7 @@ void Valve_ControlAlgorithm_Init(void)
 	dP_bag_dt = 0.0f;
 
 	// Ensure valve job is idle
-	ValvePulseJob_t* job = Valve_GetData();
-	if (job) {
-		job->active = false;
-	}
+	g_valve_job.active = 0;
 	valve_close();
 }
 
@@ -128,8 +134,7 @@ void Valve_ControlAlgorithm_Update(void)
 		duty = 0.0f;
 		valve_close();
 		// Also cancel any running job
-		ValvePulseJob_t* job = Valve_GetData();
-		if (job) job->active = false;
+	g_valve_job.active = 0;
 	}
 
 	// Window scheduler: lock on-time at beginning of each 1s window
@@ -171,8 +176,7 @@ void Valve_ControlAlgorithm_Enable(bool en)
 	if (!enabled) {
 		// Immediately ensure valve is closed, cancel any pending job, and mark uninitialized
 		valve_close();
-		ValvePulseJob_t* job = Valve_GetData();
-		if (job) job->active = false;
+		g_valve_job.active = 0;
 		initialized = false;
 	} else {
 		// On enable, re-initialize to capture current sensor baseline
@@ -244,3 +248,26 @@ float Valve_GetDuty(void) { return duty; }
 float Valve_GetPbag(void) { return P_bag_filt; }
 float Valve_GetPwater(void) { return P_water_filt; }
 float Valve_GetdPdt(void) { return dP_bag_dt; }
+
+// Non-blocking pulse API ownership moved here
+void valve_open_for(uint32_t ms)
+{
+	if (ms == 0) return;
+	uint32_t now = HAL_GetTick();
+	if (!g_valve_job.active) {
+		valve_open();
+		g_valve_job.active = 1;
+		g_valve_job.t_start_ms = now;
+		g_valve_job.duration_ms = ms;
+	}
+}
+
+void valve_pulse_task(void)
+{
+	if (!g_valve_job.active) return;
+	uint32_t now = HAL_GetTick();
+	if ((uint32_t)(now - g_valve_job.t_start_ms) >= g_valve_job.duration_ms) {
+		valve_close();
+		g_valve_job.active = 0;
+	}
+}

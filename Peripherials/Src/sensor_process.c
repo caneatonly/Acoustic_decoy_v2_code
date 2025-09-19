@@ -10,8 +10,14 @@
 // 全局数据实例
 MS5837_Data_t g_ms5837_data = {0};
 IMU_Data_t g_imu_data = {0};
-Motor_Control_t g_motor_control = {0};
-ValvePulseJob_t g_valve_job = {0};
+// Motor control kept internal to this module
+typedef struct {
+    uint16_t current_pwm;   // 当前PWM占空比或频率值
+    uint16_t target_pwm;    // 目标PWM值
+    bool motor_enabled;     // 电机启用状态
+    uint32_t last_update;   // 上次更新的时间戳
+} Motor_Control_t;
+static Motor_Control_t g_motor_control = {0};
 
 // 初始化函数
 void SensorSystem_Init(void)
@@ -40,7 +46,7 @@ void SensorSystem_Init(void)
 }
 
 // 数据访问函数
-MS5837_Data_t* MS5837_GetData(void)
+const MS5837_Data_t* MS5837_GetData(void)
 {
     return &g_ms5837_data;
 }
@@ -48,16 +54,6 @@ MS5837_Data_t* MS5837_GetData(void)
 IMU_Data_t* IMU_GetData(void)
 {
     return &g_imu_data;
-}
-
-Motor_Control_t* Motor_GetData(void)
-{
-    return &g_motor_control;
-}
-
-ValvePulseJob_t* Valve_GetData(void)
-{
-    return &g_valve_job;
 }
 
 // IMU数据处理函数
@@ -158,31 +154,6 @@ void IMU_UpdateAccel(float accelX, float accelY, float accelZ)
     g_imu_data.data_valid = true;
 }
 
-// 请求开启阀门指定时长（非阻塞）被Valve_ControlAlgorithm_Update调用
-void valve_open_for(uint32_t ms)
-{
-    if (ms == 0) return;
-    uint32_t now = HAL_GetTick();
-    if (!g_valve_job.active) {
-        valve_open();
-        g_valve_job.active = true;
-        g_valve_job.t_start_ms = now;
-        g_valve_job.duration_ms = ms;
-    } 
-}
-
-// 任务：被Valve_ControlAlgorithm_Update调用，处理阀门定时关闭
-void valve_pulse_task(void)
-{
-    if (!g_valve_job.active) return;
-
-    uint32_t now = HAL_GetTick();
-    // 处理 32bit tick 回绕的安全比较
-    if ((uint32_t)(now - g_valve_job.t_start_ms) >= g_valve_job.duration_ms) {
-        valve_close();
-        g_valve_job.active = 0;
-    }
-}
 
 void LEDstatus_on(void) {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET); // PA4 LED ON
