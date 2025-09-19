@@ -7,13 +7,17 @@
 #include "control_config.h"
 #include "depth_cascaded_ctrl.h"
 #include "actuators.h"
+#include "mission_exec.h"
 #include "control_algorithm.h"
 #include "balloon_state.h"
 #include <stdint.h>
 #include <stdbool.h>
 
+// 装置总体任务状态由 Mission Manager 管理
+
+// 全局静态变量
 static depth_estimator_t g_depth_est;
-static uint32_t g_last_publish=0;
+static uint32_t g_last_publish = 0;
 static depth_ctrl_t g_depth_ctrl = {0};
 static balloon_status_t g_balloon = {0};
 
@@ -30,20 +34,25 @@ static void DepthController_Init(void){
     cfg.vel_hold.kp  = PID_V_KP_HOLD; cfg.vel_hold.ki  = PID_V_KI_HOLD; cfg.vel_hold.kd  = PID_V_KD_HOLD;
     cfg.v_ref_max_app = CTRL_V_REF_MAX_APP; cfg.v_ref_max_hold = CTRL_V_REF_MAX_HOLD; cfg.v_ref_slew = CTRL_V_REF_SLEW;
     cfg.pwm_neutral = CTRL_PWM_NEUTRAL; cfg.pwm_min = CTRL_PWM_MIN; cfg.pwm_max = CTRL_PWM_MAX; cfg.pwm_slew_per_tick = CTRL_PWM_SLEW_PER_TICK;
-    DepthCtrl_Init(&g_depth_ctrl, &cfg, CTRL_DEPTH_TARGET_M);
+    // Initialize with current mission target depth
+    const mission_status_t* ms = Mission_GetStatus();
+    float target = ms ? ms->target_depth_m : CTRL_DEPTH_TARGET_M;
+    DepthCtrl_Init(&g_depth_ctrl, &cfg, target);
 }
 
 // 控制循环初始化
 void ControlLoop_Init(void){
     DepthEst_Init(&g_depth_est,ESTIMATOR_EMA_ALPHA_Z);
-    Mission_Init(CTRL_DEPTH_TARGET_M); 
+    Mission_Init(CTRL_DEPTH_TARGET_M);
     DepthController_Init();
-    Actuators_Init(); //空函数！！！
     Balloon_Init(&g_balloon);
     Telemetry_Init();  //空函数！！！
 }
 
+// !!!总体控制逻辑大循环!!!
 void ControlLoop_RunIteration(uint32_t now_ms){
+
+    // 深度估计器更新
     MS5837_Data_t *ms = MS5837_GetData();
     if(ms && ms->data_valid){
         DepthEst_Update(&g_depth_est, ms->depth, now_ms);
@@ -53,80 +62,32 @@ void ControlLoop_RunIteration(uint32_t now_ms){
     float depth_est = DepthEst_GetDepth(&g_depth_est);
     float velocity_est = DepthEst_GetVelocity(&g_depth_est);
 
-    // 由 Mission Manager 统一管理阶段切换：传入当前的气囊状态（使用上次更新的状态）
+    // Mission Manager 统一管理阶段切换 
+    // 更新任务状态
     Mission_Update(now_ms, depth_est, velocity_est, g_balloon.state);
     
-    // 任务状态快照 用于上报
-    const mission_status_t *mstat = Mission_GetStatus();
+    // 获取当前任务状态
+    mission_status_t *mstat = Mission_GetStatus();
     Telemetry_SetMissionState((int)mstat->state);
 
-    // 检测状态切换，并执行状态切换所需要的一次性动作
-    bool state_changed = Mission_HasStateChanged();
-    if (state_changed) {
-        if (mstat->state == MISSION_PREP_HOLD) {
-            // 进入预备阶段：释放整流罩（一次性动作），并启用气囊充气控制
-            Actuators_FairingRelease();
-            Valve_ControlAlgorithm_Enable(true);
-        } else {
-            // 其它任何阶段：确保充气控制关闭 ！！后续HOLD阶段可考虑开启微调
-            Valve_ControlAlgorithm_Enable(false);
-        }
-        // 确认已处理状态切换的一次性动作
-        Mission_AckStateChange();
-    }
+    // 根据任务状态执行动作
+    Mission_Execute(now_ms, depth_est, velocity_est, &g_depth_ctrl, mstat);
 
-    // 根据状态机的状态配置控制器参数
-    int16_t pwm;
-    if (mstat->state == MISSION_APPROACH ||
-        mstat->state == MISSION_PREP_HOLD ||
-        mstat->state == MISSION_DEPTH_HOLD) {
-        // 默认值
-        depth_ctrl_mode_t mode = DEPTH_CTRL_MODE_APPROACH;
-        bool force_vref = false;
-        float vref_cmd = 0.0f;
-
-        switch (mstat->state) {
-            case MISSION_APPROACH:
-                mode = DEPTH_CTRL_MODE_APPROACH;
-                force_vref = false; // 外环产生速度参考
-                break;
-            case MISSION_PREP_HOLD:
-                mode = DEPTH_CTRL_MODE_HOLD;     // 进入预备带后改为保深增益
-                force_vref = true;               // 强制 v_ref = 0，速度趋近0
-                vref_cmd = 0.0f;
-                break;
-            case MISSION_DEPTH_HOLD:
-                mode = DEPTH_CTRL_MODE_HOLD;
-                force_vref = false; // 由外环给出较小速度参考
-                break;
-            default: break;
-        }
-        DepthCtrl_SetMode(&g_depth_ctrl, mode);
-        DepthCtrl_ForceVref(&g_depth_ctrl, force_vref, vref_cmd);
-        DepthCtrl_Update(&g_depth_ctrl, depth_est, velocity_est, now_ms);
-        pwm = DepthCtrl_GetPwm(&g_depth_ctrl);
-    } else {
-        // 其它状态不驱动电机（可后续细化不同状态策略）
-        pwm = CTRL_PWM_NEUTRAL;
-    }
-
-    Actuators_SetMotorPwm(pwm);
-    
-    // 电磁阀充气算法执行，更新气囊状态
-    Valve_ControlAlgorithm_Update();
     float duty = Valve_GetDuty();
     float p_bag = Valve_GetPbag();
     float p_water = Valve_GetPwater();
     float dPdt = Valve_GetdPdt();
-    Balloon_Update(&g_balloon, duty, p_bag, p_water, dPdt, now_ms);
+    // 气囊状态机更新
+    Balloon_Update(&g_balloon, duty, dPdt, now_ms);
 
-
-    Telemetry_SetBalloon((int)g_balloon.state);
     // 状态数据更新与发布
     Telemetry_SetDepth(depth_est, velocity_est);
+    Telemetry_SetBalloon((int)g_balloon.state);
     float vref_pub = (mstat->state == MISSION_APPROACH || mstat->state == MISSION_PREP_HOLD || mstat->state == MISSION_DEPTH_HOLD)
                         ? DepthCtrl_GetVref(&g_depth_ctrl) : 0.0f;
-    Telemetry_SetControl(vref_pub, pwm);
+    int16_t pwm_pub = mstat->motor_active ? DepthCtrl_GetPwm(&g_depth_ctrl) : CTRL_PWM_NEUTRAL;
+    Telemetry_SetControl(vref_pub, pwm_pub);
+
     Telemetry_SetPressures(p_bag, p_water, dPdt, duty);
     if(now_ms - g_last_publish >= CTRL_STATUS_PUBLISH_MS){
         Telemetry_Publish(now_ms);

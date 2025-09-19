@@ -18,7 +18,7 @@ typedef struct {
 } balloon_status_t;
 
 void Balloon_Init(balloon_status_t *b);
-void Balloon_Update(balloon_status_t *b, float duty, float p_bag, float p_water, float dP_dt, uint32_t now_ms);
+void Balloon_Update(balloon_status_t *b, float duty, float dP_dt, uint32_t now_ms);
 
 
 #ifdef __cplusplus

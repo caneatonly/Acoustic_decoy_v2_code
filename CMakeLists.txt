@@ -57,6 +57,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Controls/Src/depth_estimator.c
     Controls/Src/mission_manager.c
     Controls/Src/depth_cascaded_ctrl.c
+    Controls/Src/mission_exec.c
     Controls/Src/balloon_state.c
     Controls/Src/safety_monitor.c
     Controls/Src/telemetry.c

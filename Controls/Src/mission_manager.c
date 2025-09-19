@@ -16,7 +16,7 @@ void Mission_Init(float target_depth_m){
     g_status.prev_state = MISSION_INIT;
     g_status.target_depth_m = target_depth_m; 
     g_status.state_enter_ms = 0; 
-    g_status.started = true; // placeholder
+    g_status.started = true; 
 }
 
 // 任务模式切换逻辑
@@ -102,7 +102,7 @@ void Mission_AbortFailsafe(const char *reason){
 }
 
 // 任务状态查询接口
-const mission_status_t* Mission_GetStatus(void){
+mission_status_t* Mission_GetStatus(void){
     return &g_status; 
 }
 

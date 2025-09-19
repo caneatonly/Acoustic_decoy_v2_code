@@ -2,7 +2,7 @@
  #include <math.h>
  #include <stdbool.h>
 
-// 初始化深度估计器
+// 初始化深度估计器 设置alpha参数
 void DepthEst_Init(depth_estimator_t *est, float alpha){
     if(!est) return;
     est->z_raw=0.0f; 

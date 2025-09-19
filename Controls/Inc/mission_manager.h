@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "balloon_state.h"
+#include "depth_cascaded_ctrl.h"
 
 typedef enum {
     MISSION_INIT = 0,
@@ -17,18 +18,24 @@ typedef enum {
 } mission_state_t;
 
 typedef struct {
-    mission_state_t state;
-    mission_state_t prev_state;
-    uint32_t state_enter_ms;
-    float target_depth_m;
-    bool started;
+    mission_state_t state;       // 当前任务状态
+    mission_state_t prev_state;  // 上一个任务状态
+    uint32_t state_enter_ms;     // 进入当前状态的时间戳
+    float target_depth_m;        // 目标深度
+    bool started;                // 任务是否已启动
+    bool fairing_release_once;   // 状态进入时的一次性释放整流罩
+    bool valve_enable;           // 充气控制是否使能
+    bool motor_active;           // 是否由深度控制器驱动电机
+    depth_ctrl_mode_t ctrl_mode; // 深度控制器模式（接近/保持）
+    bool force_vref;             // 是否强制速度参考
+    float vref_cmd;              // 强制速度参考的数值
 } mission_status_t;
 
 void Mission_Init(float target_depth_m);
 void Mission_Update(uint32_t now_ms, float depth_m, float depth_vel_mps, balloon_state_t balloon_state);
 void Mission_RequestRecovery(void);
 void Mission_AbortFailsafe(const char *reason);
-const mission_status_t* Mission_GetStatus(void);
+mission_status_t* Mission_GetStatus(void);
 
 // State transition helpers
 // Returns true if mission state changed since last acknowledge

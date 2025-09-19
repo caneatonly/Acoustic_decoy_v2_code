@@ -55,7 +55,7 @@ Email: zyshine3@sjtu.edu.cn
 #define SAFETY_DEPTH_TIMEOUT_MS   (1500u)
 #define SAFETY_PRESS_TIMEOUT_MS   (1500u)
 
-//Status Publish intervals
+//状态上报间隔
 #define CTRL_STATUS_PUBLISH_MS    (1000u)
 
 // 任务相关参数
