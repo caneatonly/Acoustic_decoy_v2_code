@@ -1,4 +1,4 @@
-#include "sensor_process.h"
+#include "bsp_io.h"
 #include "bsp_usart.h"
 #include "im948_CMD.h"
 #include "stm32f1xx_hal.h"
@@ -10,6 +10,7 @@
 // 全局数据实例
 MS5837_Data_t g_ms5837_data = {0};
 IMU_Data_t g_imu_data = {0};
+
 // Motor control kept internal to this module
 typedef struct {
     uint16_t current_pwm;   // 当前PWM占空比或频率值
@@ -27,6 +28,7 @@ void SensorSystem_Init(void)
     g_ms5837_data.depth = 0.0f;
     g_ms5837_data.timestamp = 0;
     g_ms5837_data.data_valid = false;
+    g_ms5837_data.pressure_water = 0.0f;
     
     // 初始化IMU数据
     g_imu_data.angleX = 0.0f;
@@ -51,7 +53,7 @@ const MS5837_Data_t* MS5837_GetData(void)
     return &g_ms5837_data;
 }
 
-IMU_Data_t* IMU_GetData(void)
+const IMU_Data_t* IMU_GetData(void)
 {
     return &g_imu_data;
 }
@@ -154,7 +156,6 @@ void IMU_UpdateAccel(float accelX, float accelY, float accelZ)
     g_imu_data.data_valid = true;
 }
 
-
 void LEDstatus_on(void) {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET); // PA4 LED ON
 }
@@ -188,4 +189,3 @@ void valve_open(void) {
 void valve_close(void) {
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 1000);
 }
-

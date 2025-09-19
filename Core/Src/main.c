@@ -30,7 +30,7 @@
 #include "bsp_usart.h"
 #include <stdint.h>
 #include <stdio.h>
-#include "sensor_process.h"
+#include "bsp_io.h"
 #include "baro_adc.h"
 #include "valve_ctrl.h"
 // Control framework

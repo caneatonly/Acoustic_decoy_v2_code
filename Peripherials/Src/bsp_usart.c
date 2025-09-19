@@ -1,6 +1,6 @@
 #include "bsp_usart.h"
 #include "im948_CMD.h"
-#include "sensor_process.h"
+#include "bsp_io.h"
 #include <stdlib.h>
 #include <string.h>
 #include "stdio.h"
@@ -89,7 +89,7 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
     }
     else if (strncmp((char*)command, "status", 6) == 0)
     {
-    IMU_Data_t* imu = IMU_GetData();
+    const IMU_Data_t* imu = IMU_GetData();
     const MS5837_Data_t* ms5837 = MS5837_GetData();
     const BaroADC_Data_t* baro = BaroADC_GetData();
         // 状态查询命令

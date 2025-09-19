@@ -50,7 +50,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     Peripherials/Src/bsp_usart.c
     Peripherials/Src/im948_CMD.c
-    Peripherials/Src/sensor_process.c
+    Peripherials/Src/bsp_io.c
     Peripherials/Src/MS5837_lib.c
     Peripherials/Src/baro_adc.c
     Controls/Src/valve_ctrl.c

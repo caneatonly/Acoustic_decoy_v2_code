@@ -10,7 +10,7 @@
 *******************************************************************************/
 #include "im948_CMD.h"
 #include "bsp_usart.h"
-#include "sensor_process.h" 
+#include "bsp_io.h" 
 
 struct_UartFifo UartFifo;
 U8 targetDeviceAddress=255; // 通信地址，设为0-254指定则设备地址，设为255则不指定设备(即广播), 当需要使用485总线形式通信时通过该参数选中要操作的设备，若仅仅是串口1对1通信设为广播地址255即可

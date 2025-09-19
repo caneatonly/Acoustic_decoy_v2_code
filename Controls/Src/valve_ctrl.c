@@ -1,7 +1,8 @@
 // PD-based valve control with 1s duty window
 #include "valve_ctrl.h"
 
-#include "sensor_process.h"   
+#include "bsp_io.h"   
+#include "actuators.h"
 #include "baro_adc.h"         
 #include "stm32f1xx_hal.h"
 
@@ -75,14 +76,14 @@ void Valve_ControlAlgorithm_Init(void)
 
 	// Ensure valve job is idle
 	g_valve_job.active = 0;
-	valve_close();
+	Actuators_ValveClose();
 }
 
 void Valve_ControlAlgorithm_Update(void)
 {
 	// Gate: when disabled, keep valve closed and progress job state only
 	if (!enabled) {
-		valve_close();
+	Actuators_ValveClose();
 		valve_pulse_task();
 		return;
 	}
@@ -104,7 +105,7 @@ void Valve_ControlAlgorithm_Update(void)
 
 	if (!baro || !ms || !baro->data_valid || !ms->data_valid) {
 		// Invalidate control; ensure valve closed and progress job state machine
-		valve_close();
+	Actuators_ValveClose();
 		valve_pulse_task();
 		return;
 	}
@@ -162,7 +163,7 @@ void Valve_ControlAlgorithm_Update(void)
 		if ( locked_on_ms > 0) {
 			valve_open_for( locked_on_ms);
 		} else {
-			valve_close();
+			Actuators_ValveClose();
 		}
 	}
 
@@ -175,7 +176,7 @@ void Valve_ControlAlgorithm_Enable(bool en)
 	enabled = en;
 	if (!enabled) {
 		// Immediately ensure valve is closed, cancel any pending job, and mark uninitialized
-		valve_close();
+		Actuators_ValveClose();
 		g_valve_job.active = 0;
 		initialized = false;
 	} else {
@@ -255,7 +256,7 @@ void valve_open_for(uint32_t ms)
 	if (ms == 0) return;
 	uint32_t now = HAL_GetTick();
 	if (!g_valve_job.active) {
-		valve_open();
+	Actuators_ValveOpen();
 		g_valve_job.active = 1;
 		g_valve_job.t_start_ms = now;
 		g_valve_job.duration_ms = ms;
@@ -267,7 +268,7 @@ void valve_pulse_task(void)
 	if (!g_valve_job.active) return;
 	uint32_t now = HAL_GetTick();
 	if ((uint32_t)(now - g_valve_job.t_start_ms) >= g_valve_job.duration_ms) {
-		valve_close();
+	Actuators_ValveClose();
 		g_valve_job.active = 0;
 	}
 }
