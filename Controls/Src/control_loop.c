@@ -2,8 +2,7 @@
 #include "depth_estimator.h"
 #include "mission_manager.h"
 #include "telemetry.h"
-#include "bsp_io.h"
-#include "MS5837_lib.h"
+#include "sensors_data_get.h"
 #include "control_config.h"
 #include "depth_cascaded_ctrl.h"
 #include "actuators.h"
@@ -53,7 +52,7 @@ void ControlLoop_Init(void){
 void ControlLoop_RunIteration(uint32_t now_ms){
 
     // 深度估计器更新
-    const MS5837_Data_t *ms = MS5837_GetData();
+    const MS5837_Data_t *ms = MS5837_data_get();
     if(ms && ms->data_valid){
         DepthEst_Update(&g_depth_est, ms->depth, now_ms);
     }
