@@ -13,7 +13,8 @@ void Actuators_FairingRelease(void){ fairing_release(); }
 void Actuators_ValveOpen(void){ valve_open(); }
 void Actuators_ValveClose(void){ valve_close(); }
 void Actuators_ValveOpenFor(uint32_t ms){ valve_open_for(ms); }
-
+void Actuators_12V_PowerOn(void){ power_on(); }
+void Actuators_12V_PowerOff(void){ power_off(); }
 
 void Actuators_LedToggle(void){
     static bool led_on = false;

@@ -18,11 +18,18 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
     s->force_vref = false;
     s->vref_cmd = 0.0f;
 
+    // 阶段资源使能策略：
+    // - APPROACH:    motor=ON,  valve=OFF
+    // - PREP_HOLD:   motor=ON,  valve=ON (释放罩+充气，强制v=0)
+    // - DEPTH_HOLD:  motor=ON,  valve=ON（维持dp裕量）
+    // - DWELL:       motor=OFF, valve=ON（允许小幅浮力微调）
+    // - RECOVERY:    motor=ON,  valve=OFF（主动上浮）
     switch (s->state) {
         case MISSION_APPROACH:
             s->motor_active = true;
             s->ctrl_mode = DEPTH_CTRL_MODE_APPROACH;
             s->force_vref = false;
+            s->valve_enable = false;
             break;
         case MISSION_PREP_HOLD:
             s->motor_active = true;
@@ -32,19 +39,43 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
             s->valve_enable = true;
             if (state_changed) {
                 s->fairing_release_once = true;
+                // 进入零速保持前重置控制器积分，避免残余积分导致漂移
+                // Reset controller integrators before entering zero-speed hold to avoid residual drift
+                DepthCtrl_ResetIntegrators(ctrl);
             }
             break;
         case MISSION_DEPTH_HOLD:
             s->motor_active = true;
             s->ctrl_mode = DEPTH_CTRL_MODE_HOLD;
-            s->force_vref = false;
+            s->force_vref = false; 
+            s->valve_enable = true; 
+            break;
+        case MISSION_DWELL_MONITOR:
+            s->motor_active = false; 
+            s->valve_enable = true;  
+            s->ctrl_mode = DEPTH_CTRL_MODE_HOLD;
+            s->force_vref = true;
+            s->vref_cmd = 0.0f;
+            break;
+        case MISSION_RECOVERY_ASCEND:
+            // 回收阶段：打开电机，命令上浮速度
+            s->motor_active = true;
+            s->ctrl_mode = DEPTH_CTRL_MODE_APPROACH; // 用Approach的速度上限
+            s->force_vref = true;
+            s->vref_cmd = CTRL_RECOVERY_ASCEND_VREF;
+            s->valve_enable = false; // 显式：回收阶段阀门失能
+            if (state_changed) {
+                // Before ascending, turn on 12V peripheral power
+                Actuators_12V_PowerOn();
+                DepthCtrl_ResetIntegrators(ctrl);
+            }
             break;
         default:
             // keep defaults
             break;
     }
 
-    // 2) 执行一次性动作与持续控制（原 ExecTick）
+    // 执行一次性动作与持续控制（原 ExecTick）
     if (s->fairing_release_once) {
         Actuators_FairingRelease();
         Mission_AckStateChange();

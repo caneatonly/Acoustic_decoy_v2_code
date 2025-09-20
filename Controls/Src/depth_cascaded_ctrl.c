@@ -120,3 +120,9 @@ int16_t DepthCtrl_GetPwm(const depth_ctrl_t *ctrl){
 float DepthCtrl_GetVref(const depth_ctrl_t *ctrl){
     return ctrl? ctrl->v_ref:0.0f; 
 }
+
+void DepthCtrl_ResetIntegrators(depth_ctrl_t *ctrl){
+    if(!ctrl) return;
+    ctrl->integ_z = 0.0f;
+    ctrl->integ_v = 0.0f;
+}

@@ -14,6 +14,8 @@ void Actuators_ValveOpen(void);
 void Actuators_ValveClose(void);
 void Actuators_ValveOpenFor(uint32_t ms);
 void Actuators_LedToggle(void);
+void Actuators_12V_PowerOn(void);
+void Actuators_12V_PowerOff(void);
 
 #ifdef __cplusplus
 }

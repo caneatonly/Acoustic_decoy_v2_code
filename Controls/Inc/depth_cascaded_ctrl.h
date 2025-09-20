@@ -51,6 +51,8 @@ void DepthCtrl_ForceVref(depth_ctrl_t *ctrl, bool enable, float v_ref_fixed);
 void DepthCtrl_Update(depth_ctrl_t *ctrl, float z_meas, float v_meas, uint32_t now_ms);
 int16_t DepthCtrl_GetPwm(const depth_ctrl_t *ctrl);
 float DepthCtrl_GetVref(const depth_ctrl_t *ctrl);
+// 清零深度/速度积分，进入特殊模式（如回收）或模式切换前调用，避免积分累积造成的突变
+void DepthCtrl_ResetIntegrators(depth_ctrl_t *ctrl);
 
 
 #endif

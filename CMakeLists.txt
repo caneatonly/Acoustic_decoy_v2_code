@@ -59,9 +59,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Controls/Src/depth_cascaded_ctrl.c
     Controls/Src/mission_exec.c
     Controls/Src/balloon_state.c
-    Controls/Src/safety_monitor.c
+
     Controls/Src/telemetry.c
-    Controls/Src/param_registry.c
+
     Controls/Src/actuators.c
     Controls/Src/control_loop.c
 )

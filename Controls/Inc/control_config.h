@@ -62,4 +62,15 @@ Email: zyshine3@sjtu.edu.cn
 #define WATER_DETECT_DEPTH_THRESHOLD_M   (0.15f)   // 超过此深度认为已入水
 #define WATER_DETECT_TIMEOUT_MS          (10000u)  // 10s 超时
 
+// 保深驻留与回收参数
+// 在进入 MISSION_DEPTH_HOLD 后持续该时长（且保持在预备带内），即认为已到位，进入驻留/省电阶段
+#define CTRL_HOLD_DWELL_TIME_MS          (60000u)  // 60s，可调
+// 在驻留阶段停留该时长后自动进入回收上浮（如果没有外部上浮命令提前触发）
+#define CTRL_RECOVERY_DELAY_MS           (300000u) // 5min，可调
+// 上浮阶段的目标速度（负号代表上行，单位 m/s），由深度控制器产生推力
+#define CTRL_RECOVERY_ASCEND_VREF        (-0.20f)
+
+// 表面检测与自动停机（RECOVERY结束判据）
+#define CTRL_SURFACE_DEPTH_TH_M          (0.10f)   // 小于等于该深度视为到达水面/浅水
+
 #endif

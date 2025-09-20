@@ -1,7 +1,6 @@
 // PD-based valve control with 1s duty window
 #include "valve_ctrl.h"
-
-#include "bsp_io.h"   
+#include "bsp_io.h"
 #include "actuators.h"
 #include "baro_adc.h"         
 #include "stm32f1xx_hal.h"
