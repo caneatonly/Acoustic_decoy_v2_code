@@ -73,7 +73,6 @@ void Mission_Update(uint32_t now_ms, float depth_m, float vel_mps, balloon_state
                 g_status.state_enter_ms = now_ms;
             }
             break; }
-        case MISSION_INFLATE_VERIFY:
         case MISSION_DEPTH_HOLD: {
             // 当“持续在目标深度附近”达到阈值后，才进入驻留阶段
             float dz = depth_m - g_status.target_depth_m;

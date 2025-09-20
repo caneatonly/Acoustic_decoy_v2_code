@@ -8,10 +8,11 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
     if (!s || !ctrl) return;
 
     // 构建当期周期的动作意图
+
+    // 检测任务状态是否变化
     const bool state_changed = Mission_HasStateChanged();
 
     // Defaults per cycle
-    s->fairing_release_once = false;
     s->valve_enable = false;
     s->motor_active = false;
     s->ctrl_mode = DEPTH_CTRL_MODE_APPROACH;
@@ -38,9 +39,10 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
             s->vref_cmd = 0.0f;
             s->valve_enable = true;
             if (state_changed) {
-                s->fairing_release_once = true;
+                // 进入 PREP_HOLD 时释放整流罩
+                Actuators_FairingRelease();
+                Mission_AckStateChange();
                 // 进入零速保持前重置控制器积分，避免残余积分导致漂移
-                // Reset controller integrators before entering zero-speed hold to avoid residual drift
                 DepthCtrl_ResetIntegrators(ctrl);
             }
             break;
@@ -60,25 +62,19 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
         case MISSION_RECOVERY_ASCEND:
             // 回收阶段：打开电机，命令上浮速度
             s->motor_active = true;
-            s->ctrl_mode = DEPTH_CTRL_MODE_APPROACH; // 用Approach的速度上限
+            s->ctrl_mode = DEPTH_CTRL_MODE_APPROACH; 
             s->force_vref = true;
             s->vref_cmd = CTRL_RECOVERY_ASCEND_VREF;
-            s->valve_enable = false; // 显式：回收阶段阀门失能
+            s->valve_enable = false; 
             if (state_changed) {
-                // Before ascending, turn on 12V peripheral power
-                Actuators_12V_PowerOn();
+                Mission_AckStateChange();
+                // 进入回收阶段，重置积分，避免残余积分影响上浮
                 DepthCtrl_ResetIntegrators(ctrl);
             }
             break;
         default:
             // keep defaults
             break;
-    }
-
-    // 执行一次性动作与持续控制（原 ExecTick）
-    if (s->fairing_release_once) {
-        Actuators_FairingRelease();
-        Mission_AckStateChange();
     }
 
     // 阀门控制：仅在状态变化时切换
