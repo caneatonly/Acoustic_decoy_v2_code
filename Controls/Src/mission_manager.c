@@ -35,7 +35,7 @@ void Mission_Update(uint32_t now_ms, float depth_m, float vel_mps, balloon_state
             g_status.state_enter_ms = now_ms;
             break;
         case MISSION_WATER_DETECT: {
-            // 条件1: 达到深度阈值 -> 进入 APPROACH
+            // 条件: 达到深度阈值 -> 进入 APPROACH
             if(depth_m > WATER_DETECT_DEPTH_THRESHOLD_M){
                 g_status.prev_state = g_status.state;
                 g_status.state = MISSION_APPROACH;

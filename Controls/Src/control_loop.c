@@ -12,13 +12,24 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// 装置总体任务状态由 Mission Manager 管理
+// 装置总体任务状态由 Mission Manager 管理，任务具体执行由Mission exec执行
 
 // 全局静态变量
+// 设备总状态结构体全局变量在mission_manager.c中定义
+
+
+/* 1） 深度估计器全局结构体：
+        记录当前： 未滤波深度，滤波深度，速度估计，EMA系数，时间戳，有效性标志*/
 static depth_estimator_t g_depth_est;
-static uint32_t g_last_publish = 0;
+/* 2） 深度控制器全局结构体：
+        记录当前： PID增益，限制参数，控制模式，目标深度，速度参考，PWM输出*/
 static depth_ctrl_t g_depth_ctrl = {0};
+/* 3） 气囊状态机全局结构体：
+        记录当前： 气囊状态*/
 static balloon_status_t g_balloon = {0};
+
+// 上次状态发布的时间戳，用于无阻塞发布消息
+static uint32_t g_last_publish = 0;
 
 /*  控制器初始化函数
     1.读取PID增益和限制参数
@@ -48,7 +59,14 @@ void ControlLoop_Init(void){
     Telemetry_Init();  //空函数！！！
 }
 
-// !!!总体控制逻辑大循环!!!
+/*!!!总体控制逻辑大循环!!!
+
+    1.深度估计器更新
+    2.Mission Manager 统一管理阶段切换
+    3.Mission Execute 根据任务状态执行动作
+    4.气囊状态机更新
+    5.状态数据更新与发布
+*/
 void ControlLoop_RunIteration(uint32_t now_ms){
 
     // 深度估计器更新
