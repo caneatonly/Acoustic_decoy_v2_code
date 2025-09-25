@@ -44,8 +44,8 @@ Email: zyshine3@sjtu.edu.cn
 #define CTRL_V_REF_MAX_HOLD   (0.05f)
 #define CTRL_V_REF_SLEW       (0.01f)   // m/s per control step (placeholder)
 #define CTRL_PWM_NEUTRAL      (1500)
-#define CTRL_PWM_MIN          (1200)
-#define CTRL_PWM_MAX          (1800)
+#define CTRL_PWM_MIN          (1000)
+#define CTRL_PWM_MAX          (2000)
 #define CTRL_PWM_SLEW_PER_TICK (15)     // per 10ms tick approx
 
 // 深度估计器 EMA 参数
