@@ -45,7 +45,6 @@ void Telemetry_SetPressures(float p_bag, float p_water, float dPdt, float duty){
 }
 
 void Telemetry_Publish(uint32_t now_ms){
-    (void)now_ms; 
-    printf("TLM:\r\n z=%.2f z_target=%.2f v=%.3f v_ref = %.3f \r\nmission_state = %d balloon_state = %d \r\npwm = %d p_bag = %.2f p_water = %.2f dPdt = %.2f duty = %.2f\r\n",
-        g_tlm.z,g_tlm.z_target, g_tlm.v, g_tlm.v_ref, g_tlm.mission_state, g_tlm.balloon_state, g_tlm.pwm, g_tlm.p_bag, g_tlm.p_water, g_tlm.dPdt, g_tlm.duty);
+    printf("Time: %u \r\nTLM:\r\n z=%.2f z_target=%.2f v=%.3f v_ref = %.3f \r\nmission_state = %d balloon_state = %d \r\npwm = %d p_bag = %.2f p_water = %.2f dPdt = %.2f duty = %.2f\r\n",
+        now_ms, g_tlm.z,g_tlm.z_target, g_tlm.v, g_tlm.v_ref, g_tlm.mission_state, g_tlm.balloon_state, g_tlm.pwm, g_tlm.p_bag, g_tlm.p_water, g_tlm.dPdt, g_tlm.duty);
 }
