@@ -137,8 +137,8 @@ void Valve_ControlAlgorithm_Update(void)
     duty = (fabsf(e) <  eps) ? 0.0f : ( Kp_valve * e -  Kd_valve *  dP_bag_dt);
     duty = clampf(duty, 0.0f, 1.0f);
 
-    // Safety: hard overpressure guard
-    if (!test_mode && ( P_bag_filt >=  P_water_filt +  guard_over_kpa)) {
+    // Safety: hard overpressure guard（无论是否测试模式均生效）
+    if ( P_bag_filt >=  P_water_filt +  guard_over_kpa) {
         duty = 0.0f;
         Actuators_ValveClose();
         // Also cancel any running job
