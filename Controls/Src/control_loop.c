@@ -98,7 +98,7 @@ void ControlLoop_RunIteration(uint32_t now_ms){
     Balloon_Update(&g_balloon, duty, dPdt, now_ms);
 
     // 状态数据更新与发布
-    Telemetry_SetDepth(depth_est, velocity_est);
+    Telemetry_SetDepth(depth_est, velocity_est, mstat->target_depth_m);
     Telemetry_SetBalloon((int)g_balloon.state);
     float vref_pub = (mstat->state == MISSION_APPROACH || mstat->state == MISSION_PREP_HOLD || mstat->state == MISSION_DEPTH_HOLD)
                         ? DepthCtrl_GetVref(&g_depth_ctrl) : 0.0f;
