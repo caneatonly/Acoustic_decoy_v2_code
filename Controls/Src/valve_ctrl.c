@@ -31,6 +31,7 @@ static float  guard_over_kpa = 30.0f;   // !!气囊压力永远不能大于 p_wa
 // 状态变量
 static bool initialized = false;
 static bool enabled = false;      // 是否启用充气功能，由状态机赋值
+static bool test_mode = false;    // PD 调参测试模式：手动目标压力，且需要上层强制电机失能
 static uint32_t  last_update_ms = 0;
 static uint32_t  win_start_ms = 0;
 static uint32_t  locked_on_ms = 0;   // on-time locked at window start
@@ -39,6 +40,7 @@ static float  P_bag_filt = 0.0f;
 static float  P_water_filt = 0.0f;
 static float  dP_bag_dt = 0.0f;      // filtered derivative kPa/s
 static float  P_bag_prev = 0.0f;
+static float  P_target_manual_kpa = 0.0f; // TestMode: 手动目标压力（绝对压）
 
 // Local non-blocking valve pulse job (moved from peripherals layer)
 typedef struct {
@@ -121,7 +123,14 @@ void Valve_ControlAlgorithm_Update(void)
     dP_bag_dt += beta_d * (d_raw - dP_bag_dt);
 
     // Target and error
-    float P_target =  P_water_filt +  dp_margin;   // kPa
+    float P_target;
+    if (test_mode) {
+        // 使用手动目标压力（绝对压）
+        P_target = P_target_manual_kpa;
+    } else {
+        // 常规：目标=水压+裕量
+        P_target =  P_water_filt +  dp_margin;   // kPa
+    }
     float e = P_target -  P_bag_filt;               // kPa
 
     // PD control -> duty in [0,1]
@@ -129,7 +138,7 @@ void Valve_ControlAlgorithm_Update(void)
     duty = clampf(duty, 0.0f, 1.0f);
 
     // Safety: hard overpressure guard
-    if ( P_bag_filt >=  P_water_filt +  guard_over_kpa) {
+    if (!test_mode && ( P_bag_filt >=  P_water_filt +  guard_over_kpa)) {
         duty = 0.0f;
         Actuators_ValveClose();
         // Also cancel any running job
@@ -269,4 +278,26 @@ void valve_pulse_task(void)
     Actuators_ValveClose();
         g_valve_job.active = 0;
     }
+}
+
+// ================= Test Mode Impl =================
+void Valve_TestMode_Enable(bool enable)
+{
+    test_mode = enable;
+}
+
+bool Valve_TestMode_IsEnabled(void)
+{
+    return test_mode;
+}
+
+void Valve_TestMode_SetTargetKpa(float target_kpa)
+{
+    if (target_kpa < 0.0f) target_kpa = 0.0f;
+    P_target_manual_kpa = target_kpa;
+}
+
+float Valve_TestMode_GetTargetKpa(void)
+{
+    return P_target_manual_kpa;
 }

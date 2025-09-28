@@ -48,6 +48,16 @@ float Valve_GetdPdt(void);
 void valve_open_for(uint32_t ms);
 void valve_pulse_task(void);
 
+// ============ PD 调参测试模式（Test Mode）API ============
+// 启用后：
+// - 允许通过手动设定目标压力进行充气控制（不再使用水压+裕量）
+// - Mission 层可查询该模式以强制电机失能、阀控启用
+void Valve_TestMode_Enable(bool enable);
+bool Valve_TestMode_IsEnabled(void);
+// 设定/查询手动目标压力（单位：kPa，指袋内绝对压力 P_bag 目标）
+void Valve_TestMode_SetTargetKpa(float target_kpa);
+float Valve_TestMode_GetTargetKpa(void);
+
 #ifdef __cplusplus
 }
 #endif

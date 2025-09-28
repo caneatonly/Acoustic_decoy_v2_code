@@ -77,6 +77,15 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
             break;
     }
 
+    // 覆盖：PD调参测试模式 -> 电机恒失能、阀控恒使能、vref=0
+    if (Valve_TestMode_IsEnabled()) {
+        s->motor_active = false;
+        s->valve_enable = true;
+        s->ctrl_mode = DEPTH_CTRL_MODE_HOLD;
+        s->force_vref = true;
+        s->vref_cmd = 0.0f;
+    }
+
     // 阀门控制：仅在状态变化时切换
     if (Valve_ControlAlgorithm_IsEnabled() != s->valve_enable) {
         Valve_ControlAlgorithm_Enable(s->valve_enable);

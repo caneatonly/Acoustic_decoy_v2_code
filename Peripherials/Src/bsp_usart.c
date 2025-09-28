@@ -114,6 +114,9 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         printf("  ctrl on|off|?         - enable/disable control loop, '?' shows state\r\n");
         printf("  set b.kp=<f> b.kd=<f> b.margin=<f> b.eps=<f>\r\n");
         printf("  params                - dump valve PD params\r\n");
+    printf("  pdtest on|off|?       - PD调参测试模式：电机失能、阀控启用\r\n");
+    printf("  set ptarget=<kPa>     - 设定手动目标压力(kPa)\r\n");
+    printf("  get ptarget           - 查询手动目标压力(kPa)\r\n");
     }
     else if (strcmp(cmd, "ver") == 0)
     {
@@ -159,6 +162,26 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
             ms5837->temperature, ms5837->depth, ms5837->pressure_water, 
             baro->pressure_bag, baro->voltage_v, baro->raw);
 
+    }
+    else if (strncmp(cmd, "pdtest", 6) == 0)
+    {
+        if (strcmp(cmd+6, " on") == 0) { Valve_TestMode_Enable(true); printf("pdtest: ON\r\n"); }
+        else if (strcmp(cmd+6, " off") == 0) { Valve_TestMode_Enable(false); printf("pdtest: OFF\r\n"); }
+        else if (strcmp(cmd+6, "") == 0 || strcmp(cmd+6, " ?") == 0) {
+            printf("pdtest: %s, Ptarget=%.2f kPa\r\n", Valve_TestMode_IsEnabled()?"ON":"OFF", Valve_TestMode_GetTargetKpa());
+        } else {
+            printf("ERR: usage pdtest on|off|?\r\n");
+        }
+    }
+    else if (strncmp(cmd, "set ptarget=", 12) == 0)
+    {
+        float v;
+        if (sscanf(cmd+12, "%f", &v) == 1) { Valve_TestMode_SetTargetKpa(v); printf("ptarget=%.2f kPa OK\r\n", v);} 
+        else { printf("ERR: usage set ptarget=<kPa>\r\n"); }
+    }
+    else if (strcmp(cmd, "get ptarget") == 0)
+    {
+        printf("ptarget=%.2f kPa\r\n", Valve_TestMode_GetTargetKpa());
     }
     else if (strcmp(cmd, "reset") == 0)
     {
