@@ -31,7 +31,7 @@ static float  guard_over_kpa = 30.0f;   // !!气囊压力永远不能大于 p_wa
 // 状态变量
 static bool initialized = false;
 static bool enabled = false;      // 是否启用充气功能，由状态机赋值
-static bool test_mode = false;    // PD 调参测试模式：手动目标压力，且需要上层强制电机失能
+static bool test_mode = true;    // PD 调参测试模式：手动目标压力，且需要上层强制电机失能
 static uint32_t  last_update_ms = 0;
 static uint32_t  win_start_ms = 0;
 static uint32_t  locked_on_ms = 0;   // on-time locked at window start
