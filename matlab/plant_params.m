@@ -41,7 +41,7 @@ k_t = 0.5*(k_t_forward + k_t_reverse);
 
 %% 控制周期 (Control period)
 dt = 0.01;                % 10 ms，与固件保持一致 (match firmware loop)
-sim_time = 40.0;          % 仿真总时长 [s]
+sim_time = 200.0;          % 仿真总时长 [s]
 t_vec = 0:dt:sim_time;    % 时间向量
 
 %% 速度内环线性化 (Velocity loop linearization)
@@ -54,9 +54,9 @@ K_v = 1 / d1;        % 静态增益 (static gain)
 %% 速度 PI 设计 (Velocity PI design via IMC)
 % PI: C_v(s) = Kp_v + Ki_v / s
 % IMC公式 (无延迟 first-order plant): Kp = tau_v / (K_v * lambda), Ki = Kp / tau_v
-lambda_v = 0.1;  % 期望闭环时间常数 (desired closed-loop time constant) < tau_v
-Kp_v_thrust = tau_v / (K_v * lambda_v)*0.45;
-Ki_v_thrust = Kp_v_thrust / tau_v*0.7;
+lambda_v = 0.15;  % 期望闭环时间常数 (desired closed-loop time constant) < tau_v
+Kp_v_thrust = tau_v / (K_v * lambda_v);
+Ki_v_thrust = Kp_v_thrust / tau_v;
 % 转为 PWM 域 (divide by k_t)
 Kp_v_pwm = Kp_v_thrust / k_t;
 Ki_v_pwm = Ki_v_thrust / k_t;
@@ -69,11 +69,11 @@ Ki_v_pwm = Ki_v_thrust / k_t;
 % 经验：Kp_z 约 = (1 / tau_z) * (scale_vref_max / depth_error_band)
 % 直接采用 IMC 对积分器 (G_z(s)=1/s) 的近似：设计闭环 1/(lambda_z s +1)
 lambda_z = 2.0; 
-Kp_z = 1 / lambda_z;               % 等效使得 v_ref ≈ Kp_z * ez (简单比例)
-Ki_z = 0;%%0.3 * Kp_z / lambda_z;      % 保守积分 (conservative integral)
+Kp_z = 1 / lambda_z*0.8;               % 等效使得 v_ref ≈ Kp_z * ez (简单比例)
+Ki_z = 0 * Kp_z / lambda_z;      % 保守积分 (conservative integral)
 
 % 限幅与斜率 (Limits & Slew)
-v_ref_max_app = 0.1;    % 与固件 CTRL_V_REF_MAX_APP 对齐
+v_ref_max_app = 0.2;    % 与固件 CTRL_V_REF_MAX_APP 对齐
 v_ref_max_hold = 0.05;   % 与固件 CTRL_V_REF_MAX_HOLD
 v_ref_slew = 0.01;       % per step
 pwm_slew_per_tick = 5;  
