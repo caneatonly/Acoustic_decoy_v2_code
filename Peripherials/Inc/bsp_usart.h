@@ -18,6 +18,9 @@ extern uint8_t uart1_rx_buffer[UART1_RX_BUFFER_SIZE];
 extern volatile uint8_t uart1_rx_index;
 extern volatile uint8_t uart1_data_ready;    // 数据准备标志
 
+// 控制主控制循环的启停标志（1=启用，0=禁用），由 main 定义
+extern volatile uint8_t g_control_loop_enabled;
+
 
 
 int UART_Write(uint8_t *buf, int Len);

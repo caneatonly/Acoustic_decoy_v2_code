@@ -3,6 +3,7 @@
 #include "bsp_io.h"
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "stdio.h"
 #include "baro_adc.h"
 #include "valve_ctrl.h"
@@ -29,6 +30,10 @@ uint8_t uart3_rx_index=0;
 uint8_t uart1_rx_buffer[UART1_RX_BUFFER_SIZE];
 volatile uint8_t uart1_rx_index = 0;
 volatile uint8_t uart1_data_ready = 0;
+static volatile uint8_t uart1_overflow = 0;
+
+// Simple version string for 'ver' command
+static const char* FW_VERSION_STR = "Acoustic_decoy_v2 FW - build " __DATE__ " " __TIME__;
 
 
 
@@ -40,10 +45,32 @@ void UART1_DataHandler(void)
     if (uart1_data_ready)
     {
         uart1_data_ready = 0;  // 清除数据准备标志
-        
-        // 处理接收到的命令
-        ProcessUART1Command(uart1_rx_buffer, uart1_rx_index);
-        
+        // 结束符与溢出安全：补0并修剪尾部空白
+        if (uart1_rx_index >= (UART1_RX_BUFFER_SIZE - 1)) {
+            uart1_rx_index = (UART1_RX_BUFFER_SIZE - 1);
+        }
+        uart1_rx_buffer[uart1_rx_index] = '\0';
+
+        // 去除行尾的 \r 和空白
+        int len = (int)uart1_rx_index;
+        while (len > 0 && (uart1_rx_buffer[len - 1] == '\r' || isspace((int)uart1_rx_buffer[len - 1]))) {
+            uart1_rx_buffer[--len] = '\0';
+        }
+
+        // 跳过行首空白
+        int start = 0;
+        while (uart1_rx_buffer[start] != '\0' && isspace((int)uart1_rx_buffer[start])) {
+            start++;
+        }
+
+        if (uart1_overflow) {
+            printf("ERR: line too long (max %d)\r\n", UART1_RX_BUFFER_SIZE - 1);
+            uart1_overflow = 0;
+        } else if (uart1_rx_buffer[start] != '\0') {
+            // 处理接收到的命令
+            ProcessUART1Command(&uart1_rx_buffer[start], (uint8_t)strlen((char*)&uart1_rx_buffer[start]));
+        }
+
         // 重置缓冲区索引
         uart1_rx_index = 0;
     }
@@ -56,38 +83,67 @@ void UART1_DataHandler(void)
  */
 void ProcessUART1Command(uint8_t *command, uint8_t length)
 {
-    // 添加字符串结束符
+    // 添加字符串结束符（保护）
     command[length] = '\0';
-    
+
+    // 左右修剪（再次确保干净）
+    char *cmd = (char*)command;
+    while (*cmd && isspace((int)*cmd)) cmd++;
+    size_t n = strlen(cmd);
+    while (n > 0 && isspace((int)cmd[n-1])) { cmd[--n] = '\0'; }
+
     // 调试信息：显示接收到的命令
-    printf("UART1 received [%d bytes]: %s\r\n", length, (char*)command);
+    printf("UART1 received [%u bytes]: %s\r\n", (unsigned)n, cmd);
     
-    // 命令处理模板 - 用户可根据需要扩展
-    if (strncmp((char*)command, "fairing", 7) == 0)
+    // 命令处理 - 可扩展
+    if (n == 0)
+    {
+        return;
+    }
+    else if (strcmp(cmd, "help") == 0 || strcmp(cmd, "?") == 0)
+    {
+        printf("Commands:\r\n");
+        printf("  help|?                - show this help\r\n");
+        printf("  ver                   - firmware version\r\n");
+        printf("  status                - quick system status\r\n");
+        printf("  fairing               - release fairing\r\n");
+        printf("  valve_open|valve_close - control valve\r\n");
+        printf("  motortest             - motor test pulse\r\n");
+        printf("  power_on|power_off    - 12V power control\r\n");
+        printf("  reset                 - System reset\r\n");
+        printf("  ctrl on|off|?         - enable/disable control loop, '?' shows state\r\n");
+        printf("  set b.kp=<f> b.kd=<f> b.margin=<f> b.eps=<f>\r\n");
+        printf("  params                - dump valve PD params\r\n");
+    }
+    else if (strcmp(cmd, "ver") == 0)
+    {
+        printf("%s\r\n", FW_VERSION_STR);
+    }
+    else if (strcmp(cmd, "fairing") == 0)
     {
         // 整流罩控制命令
         fairing_release();
         printf("Fairing release command executed\r\n");
     }
-    else if (strncmp((char*)command, "valve_open", 10) == 0)
+    else if (strcmp(cmd, "valve_open") == 0)
     {
         // 电磁阀开启命令
         valve_open();
         printf("Valve open command executed\r\n");
     }
-    else if (strncmp((char*)command, "valve_close", 11) == 0)
+    else if (strcmp(cmd, "valve_close") == 0)
     {
         // 电磁阀关闭命令
         valve_close();
         printf("Valve close command executed\r\n");
     }
-    else if (strncmp((char*)command,"motortest", 9) == 0)
+    else if (strcmp(cmd,"motortest") == 0)
     {
         // 电机测试命令
         motor_test();
         printf("Motor test command executed\r\n");
     }
-    else if (strncmp((char*)command, "status", 6) == 0)
+    else if (strcmp(cmd, "status") == 0)
     {
     const IMU_Data_t* imu = IMU_GetData();
     const MS5837_Data_t* ms5837 = MS5837_GetData();
@@ -95,7 +151,7 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         // 状态查询命令
         printf("System Status:\r\n");
         printf("  IMU Valid: %s\r\n", IMU_GetData()->data_valid ? "Yes" : "No");
-    printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
+        printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
         printf("  BARO(ADC) Valid: %s\r\n", baro->data_valid ? "Yes" : "No");
         printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm P=%.2fkPa | BARO: %.2fkPa (%.3fV, raw=%u)\r\n", 
             imu->angleX, imu->angleY, imu->angleZ,
@@ -104,119 +160,71 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
             baro->pressure_bag, baro->voltage_v, baro->raw);
 
     }
-    else if (strncmp((char*)command, "reset", 5) == 0)
+    else if (strcmp(cmd, "reset") == 0)
     {
         // 重置命令
         printf("System reset command received\r\n");
         NVIC_SystemReset();  // 执行系统重置
     }
-    else if (strncmp((char*)command, "power_on", 8) == 0)
+    else if (strcmp(cmd, "power_on") == 0)
     {
-        // 开机命令
+        // 12V 电源控制
         power_on();
         LEDstatus_on();  // 打开状态灯
         printf("Power on command received\r\n");
         // Add code to handle power on functionality here
     }
-    else if (strncmp((char*)command, "power_off", 9) == 0)
+    else if (strcmp(cmd, "power_off") == 0)
     {
-        // 关机命令
+        // 12V 电源控制
         power_off();
         LEDstatus_off();  // 关闭状态灯
         printf("Power off command received\r\n");
         // Add code to handle power off functionality here
     }
-    else if (strncmp((char*)command, "set kp ", 7) == 0)
+    else if (strncmp(cmd, "set b.kp=", 10) == 0)
     {
         float v;
-        if (sscanf((char*)command+7, "%f", &v) == 1)
-        {
-            Valve_ControlAlgorithm_SetGains(v, -1.0f);
-            printf("Kp set to %.4f\r\n", v);
-        }
-        else
-        {
-            printf("Usage: set kp <value>\r\n");
-        }
+        if (sscanf(cmd+10, "%f", &v) == 1) { Valve_ControlAlgorithm_SetGains(v, -1.0f); printf("b.kp=%.4f OK\r\n", v);} 
+        else { printf("ERR: usage set b.kp=<float>\r\n"); }
     }
-    else if (strncmp((char*)command, "set kd ", 7) == 0)
+    else if (strncmp(cmd, "set b.kd=", 10) == 0)
     {
         float v;
-        if (sscanf((char*)command+7, "%f", &v) == 1)
-        {
-            Valve_ControlAlgorithm_SetGains(-1.0f, v);
-            printf("Kd set to %.4f\r\n", v);
-        }
-        else
-        {
-            printf("Usage: set kd <value>\r\n");
-        }
+        if (sscanf(cmd+10, "%f", &v) == 1) { Valve_ControlAlgorithm_SetGains(-1.0f, v); printf("b.kd=%.4f OK\r\n", v);} 
+        else { printf("ERR: usage set b.kd=<float>\r\n"); }
     }
-    else if (strncmp((char*)command, "set margin ", 11) == 0)
+    else if (strncmp(cmd, "set b.margin=", 13) == 0)
     {
         float v;
-        if (sscanf((char*)command+11, "%f", &v) == 1)
-        {
-            Valve_ControlAlgorithm_SetMargin(v);
-            printf("Margin set to %.3f kPa\r\n", v);
-        }
-        else
-        {
-            printf("Usage: set margin <kPa>\r\n");
-        }
+        if (sscanf(cmd+13, "%f", &v) == 1) { Valve_ControlAlgorithm_SetMargin(v); printf("b.margin=%.3f OK\r\n", v);} 
+        else { printf("ERR: usage set b.margin=<kPa>\r\n"); }
     }
-    else if (strncmp((char*)command, "set eps ", 8) == 0)
+    else if (strncmp(cmd, "set b.eps=", 11) == 0)
     {
         float v;
-        if (sscanf((char*)command+8, "%f", &v) == 1)
-        {
-            Valve_ControlAlgorithm_SetEps(v);
-            printf("Eps set to %.3f kPa\r\n", v);
-        }
-        else
-        {
-            printf("Usage: set eps <kPa>\r\n");
-        }
+        if (sscanf(cmd+11, "%f", &v) == 1) { Valve_ControlAlgorithm_SetEps(v); printf("b.eps=%.3f OK\r\n", v);} 
+        else { printf("ERR: usage set b.eps=<kPa>\r\n"); }
     }
-    else if (strncmp((char*)command, "set guard ", 10) == 0)
+    else if (strncmp(cmd, "ctrl ", 5) == 0)
     {
-        float v;
-        if (sscanf((char*)command+10, "%f", &v) == 1)
-        {
-            Valve_ControlAlgorithm_SetGuard(v);
-            printf("Guard set to %.1f kPa\r\n", v);
-        }
-        else
-        {
-            printf("Usage: set guard <kPa>\r\n");
-        }
+        extern volatile uint8_t g_control_loop_enabled; // defined in main.c
+        if (strcmp(cmd+5, "on") == 0) { g_control_loop_enabled = 1; printf("ctrl: ON\r\n"); }
+        else if (strcmp(cmd+5, "off") == 0) { g_control_loop_enabled = 0; printf("ctrl: OFF\r\n"); }
+        else if (strcmp(cmd+5, "?") == 0) { printf("ctrl: %s\r\n", g_control_loop_enabled?"ON":"OFF"); }
+        else { printf("ERR: usage ctrl on|off|?\r\n"); }
     }
-    else if (strncmp((char*)command, "set window ", 11) == 0)
-    {
-        unsigned on_ms, off_ms;
-        if (sscanf((char*)command+11, "%u %u", &on_ms, &off_ms) == 2)
-        {
-            Valve_ControlAlgorithm_SetWindow(on_ms, off_ms);
-            printf("Window min_on=%u ms, min_off=%u ms\r\n", on_ms, off_ms);
-        }
-        else
-        {
-            printf("Usage: set window <min_on_ms> <min_off_ms>\r\n");
-        }
-    }
-    else if (strncmp((char*)command, "params", 6) == 0)
+    else if (strncmp(cmd, "params", 6) == 0)
     {
         ValveControlParams_t p; Valve_ControlAlgorithm_GetParams(&p);
-        printf("Params: Kp=%.4f Kd=%.4f eps=%.3f kPa margin=%.3f kPa guard=%.1f kPa window=%u ms min_on=%u ms min_off=%u ms\r\n",
-            p.Kp, p.Kd, p.eps_kpa, p.dp_margin_kpa, p.guard_over_kpa, p.window_ms, p.Tmin_on_ms, p.Tmin_off_ms);
+        printf("Params: b.kp=%.4f b.kd=%.4f b.eps=%.3f kPa b.margin=%.3f kPa\r\n",
+            p.Kp, p.Kd, p.eps_kpa, p.dp_margin_kpa);
     }
     else
     {
         // 未知命令
-        printf("Unknown command: %s\r\n", (char*)command);
-        printf("Available commands: \r\n");
-        printf("motortest, fairing, valve_open, valve_close, status, reset\r\n");
-        printf("set kp <v>, set kd <v>, set margin <kPa>, set eps <kPa>, set guard <kPa>, set window <on off>, params\r\n");
+        printf("Unknown command: %s\r\n", cmd);
+        printf("Type 'help' for a list of commands.\r\n");
     }
 }
 
@@ -242,29 +250,31 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
     if (huart->Instance == USART1)
     {
-        // 快速处理：将接收数据存入缓冲区，设置标志位
-        if (uart1_rx_index < (UART1_RX_BUFFER_SIZE - 1))
-        {
-            uart1_rx_buffer[uart1_rx_index++] = rx_byte_debug;
-            
-            // 检测命令结束条件：感叹号
-            if (rx_byte_debug == '1')
-            {
-                if (uart1_rx_index > 1)  // 确保有有效数据
-                {
-                    uart1_rx_index--;  // 移除结束符
-                    uart1_data_ready = 1;  // 设置数据准备标志
-                }
-                else
-                {
-                    uart1_rx_index = 0;  // 重置索引
-                }
+        //以 \n/\r 作为行结束
+        const uint8_t ch = rx_byte_debug;
+        const uint8_t BS = 0x08;         // backspace
+        const uint8_t DEL = 0x7F;        // delete
+        const uint8_t CR = '\r';
+        const uint8_t LF = '\n';
+
+        if (ch == BS || ch == DEL) {
+            if (uart1_rx_index > 0) {
+                uart1_rx_index--; // 简单本地编辑：仅索引回退
             }
-        }
-        else
-        {
-            // 缓冲区溢出，重置
-            uart1_rx_index = 0;
+        } else if (ch == CR || ch == LF) {
+            // 忽略连续的 CR/LF 组合中的第二个
+            if (uart1_rx_index > 0) {
+                uart1_data_ready = 1;
+            } else {
+                // 空行，忽略
+            }
+        } else {
+            if (uart1_rx_index < (UART1_RX_BUFFER_SIZE - 1)) {
+                uart1_rx_buffer[uart1_rx_index++] = ch;
+            } else {
+                // 标记溢出并丢弃后续字符直到行结束
+                uart1_overflow = 1;
+            }
         }
         // 重新启用接收中断
         HAL_UART_Receive_IT(huart, &rx_byte_debug, 1);

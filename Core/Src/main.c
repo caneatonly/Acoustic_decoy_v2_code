@@ -57,6 +57,7 @@
 
 /* USER CODE BEGIN PV */
 const uint32_t CTRL_PERIOD_MS = 10u; // 控制循环周期10ms
+volatile uint8_t g_control_loop_enabled = 1; // 1=启用控制循环，0=暂停（可通过串口命令切换）
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -153,7 +154,9 @@ int main(void)
   uint32_t now = HAL_GetTick();
   if((uint32_t)(now - last_ctrl_ms) >= CTRL_PERIOD_MS){
     last_ctrl_ms += CTRL_PERIOD_MS; // catch-up simple (could loop if drift)
-    ControlLoop_RunIteration(now);
+    if (g_control_loop_enabled) {
+      ControlLoop_RunIteration(now);
+    }
   }
     /* USER CODE END WHILE */
 
