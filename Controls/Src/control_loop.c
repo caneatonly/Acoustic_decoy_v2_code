@@ -79,6 +79,29 @@ void ControlLoop_RunIteration(uint32_t now_ms){
     float depth_est = DepthEst_GetDepth(&g_depth_est);
     float velocity_est = DepthEst_GetVelocity(&g_depth_est);
 
+    // PD调参测试模式：跳过任务状态机，直接执行阀控测试
+    if (Valve_TestMode_IsEnabled()) {
+        // 在测试模式下：只运行阀控算法，不执行任务状态机
+        Valve_ControlAlgorithm_Enable(true);  // 确保阀控启用
+        Valve_ControlAlgorithm_Update();       // 执行阀控算法
+        Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL); // 电机保持中立
+        
+        // 更新遥测数据（用于串口监控）
+        float duty = Valve_GetDuty();
+        float p_bag = Valve_GetPbag();
+        float p_water = Valve_GetPwater();
+        float dPdt = Valve_GetdPdt();
+        Telemetry_SetDepth(depth_est, velocity_est);
+        Telemetry_SetPressures(p_bag, p_water, dPdt, duty);
+        Telemetry_SetControl(0.0f, CTRL_PWM_NEUTRAL);
+        
+        if(now_ms - g_last_publish >= CTRL_STATUS_PUBLISH_MS){
+            Telemetry_Publish(now_ms);
+            g_last_publish = now_ms;
+        }
+        return; // 跳过后续任务执行逻辑
+    }
+
     // Mission Manager 统一管理阶段切换 
     // 更新任务状态
     Mission_Update(now_ms, depth_est, velocity_est, g_balloon.state);

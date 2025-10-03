@@ -112,11 +112,15 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         printf("  power_on|power_off    - 12V power control\r\n");
         printf("  reset                 - System reset\r\n");
         printf("  ctrl on|off|?         - enable/disable control loop, '?' shows state\r\n");
-        printf("  set b.kp=<f> b.kd=<f> b.margin=<f> b.eps=<f>\r\n");
-        printf("  params                - dump valve PD params\r\n");
-    printf("  pdtest on|off|?       - PD调参测试模式：电机失能、阀控启用\r\n");
-    printf("  set ptarget=<kPa>     - 设定手动目标压力(kPa)\r\n");
-    printf("  get ptarget           - 查询手动目标压力(kPa)\r\n");
+        printf("\r\n=== PD Tuning Test Mode (岸上调参专用) ===\r\n");
+        printf("  pdtest on|off|?       - 启用/关闭测试模式（跳过任务状态机）\r\n");
+        printf("  set ptarget=<kPa>     - 设定手动目标压力(绝对压，如110.0)\r\n");
+        printf("  get ptarget           - 查询当前目标压力\r\n");
+        printf("  set b.kp=<f>          - 调整比例增益 Kp\r\n");
+        printf("  set b.kd=<f>          - 调整微分增益 Kd\r\n");
+        printf("  set b.margin=<f>      - 调整压力裕量(kPa)\r\n");
+        printf("  set b.eps=<f>         - 调整死区(kPa)\r\n");
+        printf("  params                - 查看当前所有PD参数\r\n");
     }
     else if (strcmp(cmd, "ver") == 0)
     {
@@ -175,9 +179,15 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
     }
     else if (strncmp(cmd, "set ptarget=", 12) == 0)
     {
-        float v;
-        if (sscanf(cmd+12, "%f", &v) == 1) { Valve_TestMode_SetTargetKpa(v); printf("ptarget=%.2f kPa OK\r\n", v);} 
-        else { printf("ERR: usage set ptarget=<kPa>\r\n"); }
+        char *endptr;
+        float v = strtof(cmd+12, &endptr);
+        // Check if conversion was successful (endptr moved from start)
+        if (endptr != cmd+12 && v >= 0.0f) { 
+            Valve_TestMode_SetTargetKpa(v); 
+            printf("ptarget=%.2f kPa OK\r\n", v);
+        } else { 
+            printf("ERR: usage set ptarget=<kPa> (value must be >=0)\r\n"); 
+        }
     }
     else if (strcmp(cmd, "get ptarget") == 0)
     {
@@ -205,29 +215,49 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         printf("Power off command received\r\n");
         // Add code to handle power off functionality here
     }
-    else if (strncmp(cmd, "set b.kp=", 10) == 0)
+    else if (strncmp(cmd, "set b.kp=", 9) == 0)
     {
-        float v;
-        if (sscanf(cmd+10, "%f", &v) == 1) { Valve_ControlAlgorithm_SetGains(v, -1.0f); printf("b.kp=%.4f OK\r\n", v);} 
-        else { printf("ERR: usage set b.kp=<float>\r\n"); }
+        char *endptr;
+        float v = strtof(cmd+9, &endptr);
+        if (endptr != cmd+9) { 
+            Valve_ControlAlgorithm_SetGains(v, -1.0f); 
+            printf("b.kp=%.4f OK\r\n", v);
+        } else { 
+            printf("ERR: usage set b.kp=<float>\r\n"); 
+        }
     }
-    else if (strncmp(cmd, "set b.kd=", 10) == 0)
+    else if (strncmp(cmd, "set b.kd=", 9) == 0)
     {
-        float v;
-        if (sscanf(cmd+10, "%f", &v) == 1) { Valve_ControlAlgorithm_SetGains(-1.0f, v); printf("b.kd=%.4f OK\r\n", v);} 
-        else { printf("ERR: usage set b.kd=<float>\r\n"); }
+        char *endptr;
+        float v = strtof(cmd+9, &endptr);
+        if (endptr != cmd+9) { 
+            Valve_ControlAlgorithm_SetGains(-1.0f, v); 
+            printf("b.kd=%.4f OK\r\n", v);
+        } else { 
+            printf("ERR: usage set b.kd=<float>\r\n"); 
+        }
     }
     else if (strncmp(cmd, "set b.margin=", 13) == 0)
     {
-        float v;
-        if (sscanf(cmd+13, "%f", &v) == 1) { Valve_ControlAlgorithm_SetMargin(v); printf("b.margin=%.3f OK\r\n", v);} 
-        else { printf("ERR: usage set b.margin=<kPa>\r\n"); }
+        char *endptr;
+        float v = strtof(cmd+13, &endptr);
+        if (endptr != cmd+13) { 
+            Valve_ControlAlgorithm_SetMargin(v); 
+            printf("b.margin=%.3f OK\r\n", v);
+        } else { 
+            printf("ERR: usage set b.margin=<kPa>\r\n"); 
+        }
     }
-    else if (strncmp(cmd, "set b.eps=", 11) == 0)
+    else if (strncmp(cmd, "set b.eps=", 10) == 0)
     {
-        float v;
-        if (sscanf(cmd+11, "%f", &v) == 1) { Valve_ControlAlgorithm_SetEps(v); printf("b.eps=%.3f OK\r\n", v);} 
-        else { printf("ERR: usage set b.eps=<kPa>\r\n"); }
+        char *endptr;
+        float v = strtof(cmd+10, &endptr);
+        if (endptr != cmd+10) { 
+            Valve_ControlAlgorithm_SetEps(v); 
+            printf("b.eps=%.3f OK\r\n", v);
+        } else { 
+            printf("ERR: usage set b.eps=<kPa>\r\n"); 
+        }
     }
     else if (strncmp(cmd, "ctrl ", 5) == 0)
     {

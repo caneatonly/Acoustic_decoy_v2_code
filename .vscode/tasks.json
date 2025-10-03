@@ -60,7 +60,7 @@
             "dependsOrder": "sequence",
             "dependsOn": [
                 "CMake: clean rebuild",
-                "CubeProg: Flash project (SWD)"
+                "CubeProg: Flash project (ST-Link)"
             ],
             "problemMatcher": []
         },
