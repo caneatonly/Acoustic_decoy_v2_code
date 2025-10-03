@@ -72,7 +72,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     Peripherials/Inc
     Controls/Inc
-
+    
 )
 
 # Add project symbols (macros)
@@ -81,7 +81,8 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
 )
 # 添加浮点数支持的链接选项
 target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
-    -u _printf_float
+    -Wl,-u,_printf_float
+    -Wl,-u,_scanf_float
     -lm
 )
 
