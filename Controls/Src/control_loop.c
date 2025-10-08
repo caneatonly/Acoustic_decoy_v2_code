@@ -44,6 +44,7 @@ static void DepthController_Init(void){
     cfg.vel_hold.kp  = PID_V_KP_HOLD; cfg.vel_hold.ki  = PID_V_KI_HOLD; cfg.vel_hold.kd  = PID_V_KD_HOLD;
     cfg.v_ref_max_app = CTRL_V_REF_MAX_APP; cfg.v_ref_max_hold = CTRL_V_REF_MAX_HOLD; cfg.v_ref_slew = CTRL_V_REF_SLEW;
     cfg.pwm_neutral = CTRL_PWM_NEUTRAL; cfg.pwm_min = CTRL_PWM_MIN; cfg.pwm_max = CTRL_PWM_MAX; cfg.pwm_slew_per_tick = CTRL_PWM_SLEW_PER_TICK;
+    cfg.dir_thresh_pwm = CTRL_PWM_DIR_THRESH;
     // Initialize with current mission target depth
     const mission_status_t* ms = Mission_GetStatus();
     float target = ms ? ms->target_depth_m : CTRL_DEPTH_TARGET_M;
@@ -52,7 +53,7 @@ static void DepthController_Init(void){
 
 // 控制循环初始化
 void ControlLoop_Init(void){
-    DepthEst_Init(&g_depth_est,ESTIMATOR_EMA_ALPHA_Z);
+    DepthEst_Init(&g_depth_est,ESTIMATOR_EMA_ALPHA_Z, ESTIMATOR_VEL_BETA);
     Mission_Init(CTRL_DEPTH_TARGET_M);
     DepthController_Init();
     Balloon_Init(&g_balloon);

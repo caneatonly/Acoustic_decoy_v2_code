@@ -23,6 +23,7 @@ typedef struct {
     int16_t pwm_min;
     int16_t pwm_max;
     int16_t pwm_slew_per_tick; // per update limit
+    int16_t dir_thresh_pwm;     // 换向阈值
 } depth_ctrl_config_t;
 
 typedef struct {
@@ -41,6 +42,7 @@ typedef struct {
     // 强制速度参考（用于PREP_HOLD阶段将速度参考置零）
     bool force_vref_active;
     float force_vref_value;
+    int8_t last_dir; // 上一次输出方向
 } depth_ctrl_t; // 控制器状态结构体
 
 void DepthCtrl_Init(depth_ctrl_t *ctrl, const depth_ctrl_config_t *cfg, float z_target_init);

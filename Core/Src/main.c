@@ -33,6 +33,7 @@
 #include "bsp_io.h"
 #include "baro_adc.h"
 #include "valve_ctrl.h"
+#include "control_config.h"
 // Control framework
 #include "control_loop.h"
 /* USER CODE END Includes */
@@ -56,8 +57,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-const uint32_t CTRL_PERIOD_MS = 10u; // 控制循环周期10ms
-volatile uint8_t g_control_loop_enabled = 1; // 1=启用控制循环，0=暂停（可通过串口命令切换）
+volatile uint8_t g_control_loop_enabled = 1; // 控制循环使能标志，默认开启
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -110,14 +110,14 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   printf("Acoustic Decoy Initializing . . .\r\n");
+  
   // 初始化传感器与电机控制的运行期默认值
   SensorSystem_Init();
 
   //打开串口中断接收，UART3空置，用于后续扩展与linux上位机通讯
   HAL_UART_Receive_IT(&huart1, &rx_byte_debug, 1); //Debug PA9,PA10
   HAL_UART_Receive_IT(&huart2, &rx_byte, 1);// IMU PA2,PA3
-  // HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);// MS5837 PB10,PB11
-
+  // HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);// 空置串口3 PB10,PB11
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3); // 启动PWM输出 TIM3_CH3 PB0 power 
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // 启动PWM输出 TIM3_CH1 PA6 fairing release
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2); // 启动PWM输出 TIM3_CH2 PA7 valve control
@@ -134,7 +134,7 @@ int main(void)
   imuInit(); // 初始化IMU
   MS5837_Init(&hi2c1,&MS5837_info_t, 50); // 初始化MS5837压力传感器
 
-    // Initialize control loop modules
+  // Initialize control loop modules
   ControlLoop_Init();
   uint32_t last_ctrl_ms = HAL_GetTick();
 

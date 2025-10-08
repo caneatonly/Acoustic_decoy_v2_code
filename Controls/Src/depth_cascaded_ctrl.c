@@ -12,6 +12,11 @@ void DepthCtrl_Init(depth_ctrl_t *ctrl, const depth_ctrl_config_t *cfg, float z_
     ctrl->mode = DEPTH_CTRL_MODE_APPROACH; 
     ctrl->z_target = z_target_init; 
     ctrl->pwm_cmd = ctrl->cfg.pwm_neutral; 
+    ctrl->v_ref = 0.0f;
+    ctrl->v_ref_prev = 0.0f;
+    ctrl->integ_z = 0.0f;
+    ctrl->integ_v = 0.0f;
+    ctrl->last_dir = 0;
     ctrl->force_vref_active = false;
     ctrl->force_vref_value = 0.0f;
     ctrl->initialized = true; 
@@ -91,24 +96,55 @@ void DepthCtrl_Update(depth_ctrl_t *ctrl, float z_meas, float v_meas, uint32_t n
     ctrl->v_ref_prev = ctrl->v_ref;
 
     //内环：速度环 (PI basic)
-    float ev = ctrl->v_ref - v_meas;
-    ctrl->integ_v += gv->ki * ev;
-    // clamp integrator relative to pwm span
-    float pwm_span = (float)(ctrl->cfg.pwm_max - ctrl->cfg.pwm_min);
-    ctrl->integ_v = clampf(ctrl->integ_v, -0.5f*pwm_span, 0.5f*pwm_span);
-    float pwm_f = (float)ctrl->cfg.pwm_neutral + gv->kp * ev + ctrl->integ_v; // ignoring kd
+    const float pwm_span = (float)(ctrl->cfg.pwm_max - ctrl->cfg.pwm_min);
+    const float guard = 0.05f * pwm_span;
+    const float pwm_high_guard = (float)ctrl->cfg.pwm_max - guard;
+    const float pwm_low_guard = (float)ctrl->cfg.pwm_min + guard;
 
-    // Slew rate limit on PWM
+    float ev = ctrl->v_ref - v_meas;
+    float projected_pwm = (float)ctrl->cfg.pwm_neutral + gv->kp * ev + ctrl->integ_v;
+    bool push_high = (projected_pwm >= pwm_high_guard) && (ev > 0.0f);
+    bool push_low  = (projected_pwm <= pwm_low_guard) && (ev < 0.0f);
+    if(!(push_high || push_low)){
+        ctrl->integ_v += gv->ki * ev;
+    }
+    ctrl->integ_v = clampf(ctrl->integ_v, -0.5f*pwm_span, 0.5f*pwm_span);
+
+    float pwm_f = (float)ctrl->cfg.pwm_neutral + gv->kp * ev + ctrl->integ_v; // ignoring kd
+    if(pwm_f < (float)ctrl->cfg.pwm_min) pwm_f = (float)ctrl->cfg.pwm_min;
+    if(pwm_f > (float)ctrl->cfg.pwm_max) pwm_f = (float)ctrl->cfg.pwm_max;
+
+    // PWM斜率限制
     int16_t prev_pwm = ctrl->pwm_cmd;
-    int16_t target_pwm = (int16_t) (pwm_f + 0.5f);
+    int16_t target_pwm = (int16_t)(pwm_f + 0.5f);
 
     int16_t delta = target_pwm - prev_pwm;
     if(delta > ctrl->cfg.pwm_slew_per_tick) delta = ctrl->cfg.pwm_slew_per_tick;
     else if(delta < -ctrl->cfg.pwm_slew_per_tick) delta = -ctrl->cfg.pwm_slew_per_tick;
-    int16_t new_pwm = prev_pwm + delta;
-    if(new_pwm < ctrl->cfg.pwm_min) new_pwm = ctrl->cfg.pwm_min;
-    if(new_pwm > ctrl->cfg.pwm_max) new_pwm = ctrl->cfg.pwm_max;
-    ctrl->pwm_cmd = new_pwm;
+    int16_t candidate_pwm = prev_pwm + delta;
+    if(candidate_pwm < ctrl->cfg.pwm_min) candidate_pwm = ctrl->cfg.pwm_min;
+    if(candidate_pwm > ctrl->cfg.pwm_max) candidate_pwm = ctrl->cfg.pwm_max;
+
+    // 方向切换保护
+    int16_t neutral = ctrl->cfg.pwm_neutral;
+    int16_t deviation = candidate_pwm - neutral;
+    int8_t desired_dir = 0;
+    if(deviation > 0) desired_dir = 1;
+    else if(deviation < 0) desired_dir = -1;
+
+    int16_t abs_dev = (deviation >= 0) ? deviation : (int16_t)(-deviation);
+    if(desired_dir != 0 && desired_dir != ctrl->last_dir){
+        if(abs_dev < ctrl->cfg.dir_thresh_pwm){
+            candidate_pwm = neutral;
+            ctrl->integ_v *= 0.98f;//此处可修改积分衰减速度，如果还是有windup，可以加快衰减
+        }else{
+            ctrl->last_dir = desired_dir;
+        }
+    }else if(desired_dir == 0){
+        ctrl->last_dir = 0;
+    }
+
+    ctrl->pwm_cmd = candidate_pwm;
 }
 
 // 电机PWM获取API
@@ -125,4 +161,5 @@ void DepthCtrl_ResetIntegrators(depth_ctrl_t *ctrl){
     if(!ctrl) return;
     ctrl->integ_z = 0.0f;
     ctrl->integ_v = 0.0f;
+    ctrl->last_dir = 0;
 }

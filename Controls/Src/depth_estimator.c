@@ -3,15 +3,17 @@
  #include <stdbool.h>
 
 // 初始化深度估计器 设置alpha参数
-void DepthEst_Init(depth_estimator_t *est, float alpha){
+void DepthEst_Init(depth_estimator_t *est, float alpha,float beta){
     if(!est) return;
     est->z_raw=0.0f; 
     est->z_filt=0.0f; 
     est->v_est=0.0f; 
     est->alpha=alpha; 
+    est->beta=beta;
     est->last_update_ms=0; 
     est->valid=false; 
     est->z_prev=0.0f;
+    est->vel_initialized=false;
 }
 
 void DepthEst_Update(depth_estimator_t *est, float z_meas, uint32_t now_ms){
@@ -22,6 +24,7 @@ void DepthEst_Update(depth_estimator_t *est, float z_meas, uint32_t now_ms){
         est->last_update_ms=now_ms; 
         est->valid=true; 
         est->z_prev=z_meas; 
+        est->vel_initialized=false;
         return;
     }
     uint32_t dt_ms = now_ms - est->last_update_ms;
@@ -29,7 +32,13 @@ void DepthEst_Update(depth_estimator_t *est, float z_meas, uint32_t now_ms){
     float dt = dt_ms*0.001f;
     est->z_raw = z_meas;
     est->z_filt += est->alpha * (z_meas - est->z_filt);
-    est->v_est = (est->z_filt - est->z_prev)/dt;
+    float v_raw = (est->z_filt - est->z_prev)/dt;
+    if(!est->vel_initialized){
+        est->v_est = v_raw;
+        est->vel_initialized = true;
+    }else{
+        est->v_est += est->beta * (v_raw - est->v_est);
+    }
     est->z_prev = est->z_filt;
     est->last_update_ms = now_ms; 
     est->valid=true;

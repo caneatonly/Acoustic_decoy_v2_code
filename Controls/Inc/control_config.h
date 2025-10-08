@@ -13,7 +13,7 @@ Email: zyshine3@sjtu.edu.cn
 #define CTRL_PREP_BAND_ENTER_M                (0.30f)    // 进入深度预备区阈值
 #define CTRL_PREP_BAND_EXIT_M                 (0.45f)    // 退出深度预备区阈值
 #define CTRL_V_NEAR_ZERO_MPS            (0.02f)   // 速度接近零阈值，用于判断是否进入HOLD
- 
+#define CTRL_PERIOD_MS                   (10u)     // 控制循环周期10ms
 
 // Balloon stability
 #define CTRL_BALLOON_DP_MARGIN_KPA        (1.0f)
@@ -43,13 +43,15 @@ Email: zyshine3@sjtu.edu.cn
 #define CTRL_V_REF_MAX_APP    (0.25f)   // APPROACH 模式下最大参考速度
 #define CTRL_V_REF_MAX_HOLD   (0.05f)   // HOLD 模式下最大参考速度
 #define CTRL_V_REF_SLEW       (0.01f)   // m/s per control step (placeholder)
-#define CTRL_PWM_NEUTRAL      (1500)    // 中立PWM
-#define CTRL_PWM_MIN          (1000)    // 最小PWM
-#define CTRL_PWM_MAX          (2000)    // 最大PWM
-#define CTRL_PWM_SLEW_PER_TICK (15)     // 每次控制循环最大PWM变化量
+#define CTRL_PWM_NEUTRAL      (1500)
+#define CTRL_PWM_MIN          (1000)
+#define CTRL_PWM_MAX          (2000)
+#define CTRL_PWM_SLEW_PER_TICK (25)     // per 10ms tick approx, ≈2500 counts/s
+#define CTRL_PWM_DIR_THRESH     (40)    // 中立换向阈值
 
 // 深度估计器 EMA 参数
 #define ESTIMATOR_EMA_ALPHA_Z   (0.2f)
+#define ESTIMATOR_VEL_BETA      (0.2f)
 
 // Safety
 #define SAFETY_DEPTH_TIMEOUT_MS   (1500u)
