@@ -11,19 +11,19 @@
 static float duty; 
 // PD Controller Parameters 
 static float  Kp_valve = 0.015f;           
-static float  Kd_valve = 0.30f;           //待调整
-static float  eps = 2.0f;           // 死区，<2.0Kpa（容忍20cm水深差距）
+static float  Kd_valve = 0.10f;           
+static float  eps = 3.0f;           // 死区，<2.0Kpa（容忍30cm水深差距）
 static float  dp_margin = 1.0f;     // 盈余压力，目标压力高于水压的部分,kPa 
 
 // EMA and derivative filters
-static float  alpha_bag = 0.20f;    // 0.1~0.3
-static float  alpha_water = 0.20f;  // 0.1~0.3
-static float  beta_d = 0.30f;       // 0.2~0.4 for low-noise derivative
+static float  alpha_bag = 0.05f;    // 0.1~0.3
+static float  alpha_water = 0.05f;  // 0.1~0.3
+static float  beta_d = 0.1f;       // 0.2~0.4 for low-noise derivative
 
 // Window timing (ms)
 
-static uint32_t  Tmin_on = 100;     // ms
-static uint32_t  Tmin_off = 100;    // ms
+static uint32_t  Tmin_on = 200;     // ms
+static uint32_t  Tmin_off = 200;    // ms
 
 // Safety
 static float  guard_over_kpa = 30.0f;   // !!气囊压力永远不能大于 p_water + 30kPa
@@ -83,8 +83,10 @@ void Valve_ControlAlgorithm_Update(void)
 {
     // Gate: when disabled, keep valve closed and progress job state only
     if (!enabled) {
-        Actuators_ValveClose();
-        valve_pulse_task();
+        if(g_valve_job.active) {
+            Actuators_ValveClose();
+            g_valve_job.active = 0;
+        }
         return;
     }
 
@@ -117,7 +119,7 @@ void Valve_ControlAlgorithm_Update(void)
      P_bag_filt   +=  alpha_bag   * (P_bag_raw   -  P_bag_filt);
      P_water_filt +=  alpha_water * (P_water_raw -  P_water_filt);
 
-    // Low-noise derivative on measurement
+    // EMA filters also for p_bag derivative
     float d_raw = ( P_bag_filt -  P_bag_prev) / dt; // kPa/s
     P_bag_prev =  P_bag_filt;
     dP_bag_dt += beta_d * (d_raw - dP_bag_dt);
@@ -180,7 +182,9 @@ void Valve_ControlAlgorithm_Update(void)
 
 void Valve_ControlAlgorithm_Enable(bool en)
 {
+
     enabled = en;
+
     if (!enabled) {
         // Immediately ensure valve is closed, cancel any pending job, and mark uninitialized
         Actuators_ValveClose();

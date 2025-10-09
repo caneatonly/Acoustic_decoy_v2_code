@@ -30,6 +30,7 @@ static balloon_status_t g_balloon = {0};
 
 // 上次状态发布的时间戳，用于无阻塞发布消息
 static uint32_t g_last_publish = 0;
+static uint32_t pdtest_initialized = 0;
 
 /*  控制器初始化函数
     1.读取PID增益和限制参数
@@ -82,7 +83,10 @@ void ControlLoop_RunIteration(uint32_t now_ms){
     // PD调参测试模式：跳过任务状态机，直接执行阀控测试
     if (Valve_TestMode_IsEnabled()) {
         // 在测试模式下：只运行阀控算法，不执行任务状态机
+        if (!pdtest_initialized) {
         Valve_ControlAlgorithm_Enable(true);  // 确保阀控启用
+        pdtest_initialized = 1;
+        }
         Valve_ControlAlgorithm_Update();       // 执行阀控算法
         Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL); // 电机保持中立
         
