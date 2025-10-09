@@ -79,10 +79,12 @@ void Valve_ControlAlgorithm_Init(void)
 
 void Valve_ControlAlgorithm_Update(void)
 {
-    // Gate: when disabled, keep valve closed and progress job state only
+
     if (!enabled) {
-        Actuators_ValveClose();
-        valve_pulse_task();
+        if (g_valve_job.active) {
+            Actuators_ValveClose();
+            g_valve_job.active = 0;
+        }
         return;
     }
 
