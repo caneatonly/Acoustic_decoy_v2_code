@@ -7,7 +7,7 @@ clear; clc;
 
 %% 几何与物理参数 (Geometry & Physical Parameters)
 % 质量 (dry mass) m [kg]
-m = 2.08;                     % TODO: 若有称重数据替换 (replace with measured mass)
+m = 2.0;                     % TODO: 若有称重数据替换 (replace with measured mass)
 % 附加质量 (added mass) m_a [kg]
 m_a = 0.267;                 % 来自初步估计 (from initial estimate)
 m_eff = m + m_a;             % 有效质量 effective mass
@@ -70,13 +70,13 @@ Ki_v_pwm = Ki_v_thrust / k_t;
 % 直接采用 IMC 对积分器 (G_z(s)=1/s) 的近似：设计闭环 1/(lambda_z s +1)
 lambda_z = 2.0; 
 Kp_z = 1 / lambda_z*0.8;               % 等效使得 v_ref ≈ Kp_z * ez (简单比例)
-Ki_z = 0 * Kp_z / lambda_z;      % 保守积分 (conservative integral)
+Ki_z = 0.1 * Kp_z / lambda_z;      % 保守积分 (conservative integral)
 
 % 限幅与斜率 (Limits & Slew)
 v_ref_max_app = 0.2;    % 与固件 CTRL_V_REF_MAX_APP 对齐
 v_ref_max_hold = 0.05;   % 与固件 CTRL_V_REF_MAX_HOLD
 v_ref_slew = 0.01;       % per step
-pwm_slew_per_tick = 5;  
+pwm_slew_per_tick = 15;  
 
 %% 目标 (Target)
 z_target = 2.0;  % m 深度 (positive downward)
@@ -91,7 +91,7 @@ ctrl.inner = struct('Kp',Kp_v_pwm,'Ki',Ki_v_pwm,'integ',0,'v_ref',0,'v_ref_prev'
 ctrl.outer = struct('Kp',Kp_z,'Ki',Ki_z,'integ',0);
 ctrl.limits = struct('v_ref_max_app',v_ref_max_app,'v_ref_max_hold',v_ref_max_hold, ...
     'v_ref_slew',v_ref_slew,'pwm_slew',pwm_slew_per_tick, ...
-    'dir_thresh_pwm',40,'neutral_hold_steps',5); % 方向切换阈值与保持周期 (direction reversal threshold & neutral dwell)
+    'dir_thresh_pwm',15,'neutral_hold_steps',5); % 方向切换阈值与保持周期 (direction reversal threshold & neutral dwell)
 ctrl.modes = struct('mode','APPROACH'); % or HOLD
 
 sim = struct('dt',dt,'t',t_vec,'z_target',z_target);

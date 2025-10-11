@@ -19,7 +19,8 @@ log.pwm = zeros(1,Nt); log.T = zeros(1,Nt); log.ez = zeros(1,Nt); log.ev = zeros
 
 % 估计器 (EMA) 与测量噪声 (noise)
 alpha = 0.08; z_filt = z; z_prev_filt = z; v_est = 0;
-noise_std = 0.05; % 5 cm 标准差
+depth_noise_std = 0.001; % 深度测量约 1 mm 抖动，贴近实机表现
+vel_noise_std = 0.008;    % 深度差分估计的速度噪声幅度约 8 mm/s
 
 % 控制结构 (copy controller struct)
 ctrl_local = ctrl; mode = 'APPROACH';
@@ -35,10 +36,11 @@ for k = 1:Nt
     end
 
     % 估计器更新 (Estimator update)
-    z_meas = z + noise_std * randn();
+    z_meas = z + depth_noise_std * randn();
     z_filt = z_filt + alpha * (z_meas - z_filt);
     % 原始差分速度
     v_raw = (z_filt - z_prev_filt)/dt;
+    v_raw = v_raw + vel_noise_std * randn();
     z_prev_filt = z_filt;
     % 一阶低通滤波 (LPF) 抑制噪声放大
     if k == 1
