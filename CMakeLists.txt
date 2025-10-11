@@ -40,6 +40,35 @@ add_executable(${CMAKE_PROJECT_NAME})
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
 
+# FreeRTOS kernel Library build setup
+
+set(KERNEL_SRC_DIR "${CMAKE_SOURCE_DIR}/Middlewares/FreeRTOS/Source")
+set(FREERTOS_PORT_DIR "${KERNEL_SRC_DIR}/portable/GCC/ARM_CM3")
+
+set(FREERTOS_KERNEL_SRCS
+    ${KERNEL_SRC_DIR}/croutine.c
+    ${KERNEL_SRC_DIR}/event_groups.c
+    ${KERNEL_SRC_DIR}/list.c
+    ${KERNEL_SRC_DIR}/queue.c
+    ${KERNEL_SRC_DIR}/stream_buffer.c
+    ${KERNEL_SRC_DIR}/tasks.c
+    ${KERNEL_SRC_DIR}/timers.c
+    ${FREERTOS_PORT_DIR}/port.c
+    ${FREERTOS_PORT_DIR}/../../MemMang/heap_4.c
+)
+
+add_library(freertos_kernel STATIC)
+target_sources(freertos_kernel PRIVATE ${FREERTOS_KERNEL_SRCS})
+target_include_directories(freertos_kernel PUBLIC
+    ${KERNEL_SRC_DIR}/include
+    ${FREERTOS_PORT_DIR}
+    ${CMAKE_SOURCE_DIR}/Core/Inc
+)
+
+
+
+
+
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
@@ -59,12 +88,11 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Controls/Src/depth_cascaded_ctrl.c
     Controls/Src/mission_exec.c
     Controls/Src/balloon_state.c
-
     Controls/Src/telemetry.c
-
     Controls/Src/actuators.c
     Controls/Src/sensors_data_get.c
     Controls/Src/control_loop.c
+    Core/Src/freertos_hooks.c
 )
 
 # Add include paths
@@ -72,7 +100,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     Peripherials/Inc
     Controls/Inc
-    
+    Core/Inc
 )
 
 # Add project symbols (macros)
@@ -89,6 +117,6 @@ target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
-
+    freertos_kernel
     # Add user defined libraries
 )
