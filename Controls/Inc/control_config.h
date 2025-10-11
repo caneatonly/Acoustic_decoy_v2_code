@@ -47,7 +47,7 @@ Email: zyshine3@sjtu.edu.cn
 #define CTRL_PWM_MIN          (1000)
 #define CTRL_PWM_MAX          (2000)
 #define CTRL_PWM_SLEW_PER_TICK (25)     // per 10ms tick approx, ≈2500 counts/s
-#define CTRL_PWM_DIR_THRESH     (40)    // 中立换向阈值
+#define CTRL_PWM_DIR_THRESH     (30)    // 中立换向阈值
 
 // 深度估计器 EMA 参数
 #define ESTIMATOR_EMA_ALPHA_Z   (0.2f)  //深度估计 EMA系数
