@@ -50,8 +50,8 @@ Email: zyshine3@sjtu.edu.cn
 #define CTRL_PWM_DIR_THRESH     (40)    // 中立换向阈值
 
 // 深度估计器 EMA 参数
-#define ESTIMATOR_EMA_ALPHA_Z   (0.2f)
-#define ESTIMATOR_VEL_BETA      (0.2f)
+#define ESTIMATOR_EMA_ALPHA_Z   (0.2f)  //深度估计 EMA系数
+#define ESTIMATOR_VEL_BETA      (0.1f)  //速度估计 EMA系数
 
 // Safety
 #define SAFETY_DEPTH_TIMEOUT_MS   (1500u)
@@ -62,7 +62,7 @@ Email: zyshine3@sjtu.edu.cn
 
 // 任务相关参数
 #define WATER_DETECT_DEPTH_THRESHOLD_M   (0.15f)   // 超过此深度认为已入水
-#define WATER_DETECT_TIMEOUT_MS          (10000u)  // 10s 超时
+#define WATER_DETECT_TIMEOUT_MS          (20000u)  // 20s 超时
 
 // 保深驻留与回收参数
 // 在进入 MISSION_DEPTH_HOLD 后持续该时长（且保持在预备带内），即认为已到位，进入驻留/省电阶段
