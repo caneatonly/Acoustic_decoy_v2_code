@@ -72,7 +72,7 @@
 /* ============================= IDLE与Tick相关 ============================= */
 #define configUSE_IDLE_HOOK              0                               /* 空闲任务钩子 vApplicationIdleHook。 */
 #define configUSE_TICK_HOOK              0                               /* 滴答钩子 vApplicationTickHook。 */
-#define configUSE_TICKLESS_IDLE          1                               /* 启用无滴答模式 */
+#define configUSE_TICKLESS_IDLE          0                               /* 启用无滴答模式 */
 #define configEXPECTED_IDLE_TIME_BEFORE_SLEEP  2                         /*如果预计空闲时间大于等于2个tick，进入低功耗模式*/
 
 

@@ -34,6 +34,11 @@
 #include "baro_adc.h"
 #include "valve_ctrl.h"
 #include "control_config.h"
+
+// FreeRTOS Includes
+#include "FreeRTOS.h"
+#include "task.h"
+#include "control_tasks.h"
 // Control framework
 #include "control_loop.h"
 /* USER CODE END Includes */
@@ -111,36 +116,41 @@ int main(void)
 
   printf("Acoustic Decoy Initializing . . .\r\n");
   
-  // 初始化传感器与电机控制的运行期默认值
-  SensorSystem_Init();
+  // // 初始化传感器与电机控制的运行期默认值
+  // SensorSystem_Init();
 
-  //打开串口中断接收，UART3空置，用于后续扩展与linux上位机通讯
-  HAL_UART_Receive_IT(&huart1, &rx_byte_debug, 1); //Debug PA9,PA10
-  HAL_UART_Receive_IT(&huart2, &rx_byte, 1);// IMU PA2,PA3
-  // HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);// 空置串口3 PB10,PB11
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3); // 启动PWM输出 TIM3_CH3 PB0 power 
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // 启动PWM输出 TIM3_CH1 PA6 fairing release
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2); // 启动PWM输出 TIM3_CH2 PA7 valve control
+  // //打开串口中断接收，UART3空置，用于后续扩展与linux上位机通讯
+  // HAL_UART_Receive_IT(&huart1, &rx_byte_debug, 1); //Debug PA9,PA10
+  // HAL_UART_Receive_IT(&huart2, &rx_byte, 1);// IMU PA2,PA3
+  // // HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);// 空置串口3 PB10,PB11
+  // HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3); // 启动PWM输出 TIM3_CH3 PB0 power 
+  // HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // 启动PWM输出 TIM3_CH1 PA6 fairing release
+  // HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2); // 启动PWM输出 TIM3_CH2 PA7 valve control
 
-  // 启动气压 ADC 外部触发采样（TIM3 TRGO）
-  BaroADC_Init(&hadc1);
+  // // 启动气压 ADC 外部触发采样（TIM3 TRGO）
+  // BaroADC_Init(&hadc1);
 
-  // 延时一下让传感器上电准备完毕
-  HAL_Delay(1000); // 延时1秒
+  // // 延时一下让传感器上电准备完毕
+  // HAL_Delay(1000); // 延时1秒
 
-  power_on(); // 打开电源 12V
-  MS5837_SetFluidDensity(&MS5837_info_t, 1000.0f); // 设置海水密度为1000 kg/m³
-  motorInit(); // 初始化电调
-  imuInit(); // 初始化IMU
-  MS5837_Init(&hi2c1,&MS5837_info_t, 50); // 初始化MS5837压力传感器
+  // power_on(); // 打开电源 12V
+  // MS5837_SetFluidDensity(&MS5837_info_t, 1000.0f); // 设置海水密度为1000 kg/m³
+  // motorInit(); // 初始化电调
+  // imuInit(); // 初始化IMU
+  // MS5837_Init(&hi2c1,&MS5837_info_t, 50); // 初始化MS5837压力传感器
 
-  // Initialize control loop modules
-  ControlLoop_Init();
-  uint32_t last_ctrl_ms = HAL_GetTick();
+  // // Initialize control loop modules
+  // ControlLoop_Init();
+  // uint32_t last_ctrl_ms = HAL_GetTick();
 
-  printf("Initialization completed. \r\n");
+  // printf("Initialization completed. \r\n");
+
+  xTaskCreate(Task_Led, "led", 256, NULL, tskIDLE_PRIORITY + 1, NULL);
+  
+  vTaskStartScheduler();
 
   /* USER CODE END 2 */
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -152,12 +162,12 @@ int main(void)
 
   // 10ms control loop
   uint32_t now = HAL_GetTick();
-  if((uint32_t)(now - last_ctrl_ms) >= CTRL_PERIOD_MS){
-    last_ctrl_ms += CTRL_PERIOD_MS; // catch-up simple (could loop if drift)
-    if (g_control_loop_enabled) {
-      ControlLoop_RunIteration(now);
-    }
-  }
+  // if((uint32_t)(now - last_ctrl_ms) >= CTRL_PERIOD_MS){
+  //   last_ctrl_ms += CTRL_PERIOD_MS; // catch-up simple (could loop if drift)
+  //   if (g_control_loop_enabled) {
+  //     ControlLoop_RunIteration(now);
+  //   }
+  // }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -215,6 +225,28 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM4 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM4)
+  {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.

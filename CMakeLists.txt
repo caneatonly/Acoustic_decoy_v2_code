@@ -93,6 +93,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Controls/Src/sensors_data_get.c
     Controls/Src/control_loop.c
     Core/Src/freertos_hooks.c
+    Controls/Src/control_tasks.c
 )
 
 # Add include paths
