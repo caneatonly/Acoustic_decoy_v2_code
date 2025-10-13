@@ -38,7 +38,6 @@ void motorInit(void);
 void imuInit(void);
 
 // IMU相关
-void ProcessIMUData(void);
 void IMU_UpdateAngle(float angleX, float angleY, float angleZ);
 void IMU_UpdateAccel(float accelX, float accelY, float accelZ);
  

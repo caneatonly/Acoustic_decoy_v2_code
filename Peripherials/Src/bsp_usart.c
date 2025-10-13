@@ -1,6 +1,7 @@
 #include "bsp_usart.h"
 #include "im948_CMD.h"
 #include "bsp_io.h"
+#include "control_tasks.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -281,39 +282,18 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     }
     else if (huart->Instance == USART2)
     {
-        Fifo_in(rx_byte);
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+        if (g_imuRxQueue != NULL)
+        {
+            (void)xQueueSendFromISR(g_imuRxQueue, &rx_byte, &xHigherPriorityTaskWoken);
+        }
+
         // 重新启用接收中断，以便继续接收数据
         HAL_UART_Receive_IT(huart, &rx_byte, 1);
+
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
-    // else if (huart->Instance == USART3)
-    // {
-    //     // 防止缓冲区溢出
-    //     if (uart3_rx_index >= 31)
-    //     {
-    //         uart3_rx_index = 0;  // 重置缓冲区
-    //     }
-        
-    //     // 将接收到的字节存入缓冲区
-    //     uart3_rx_buffer[uart3_rx_index++] = uart3_rx_byte;
-        
-    //     // 检测数据包结束条件：换行符、回车符
-    //     if (uart3_rx_byte == '\n' || uart3_rx_byte == '\r')
-    //     {
-    //         // 添加字符串结束符
-    //         uart3_rx_buffer[uart3_rx_index] = '\0';
-            
-    //         // 只有当接收到有效数据时才处理
-    //         if (uart3_rx_index > 1)
-    //         {
-    //             ProcessUart3Data(uart3_rx_buffer);
-    //         }
-            
-    //         // 重置索引，准备接收下一个数据包
-    //         uart3_rx_index = 0;
-    //     }
-        
-    //     // 重新启动单字节接收
-    //     HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);
-    // }
+
 }
 

@@ -120,8 +120,8 @@ int main(void)
   // SensorSystem_Init();
 
   // //打开串口中断接收，UART3空置，用于后续扩展与linux上位机通讯
-  // HAL_UART_Receive_IT(&huart1, &rx_byte_debug, 1); //Debug PA9,PA10
-  // HAL_UART_Receive_IT(&huart2, &rx_byte, 1);// IMU PA2,PA3
+  HAL_UART_Receive_IT(&huart1, &rx_byte_debug, 1); //Debug PA9,PA10
+  HAL_UART_Receive_IT(&huart2, &rx_byte, 1);// IMU PA2,PA3
   // // HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);// 空置串口3 PB10,PB11
   // HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3); // 启动PWM输出 TIM3_CH3 PB0 power 
   // HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // 启动PWM输出 TIM3_CH1 PA6 fairing release
@@ -136,38 +136,28 @@ int main(void)
   // power_on(); // 打开电源 12V
   // MS5837_SetFluidDensity(&MS5837_info_t, 1000.0f); // 设置海水密度为1000 kg/m³
   // motorInit(); // 初始化电调
-  // imuInit(); // 初始化IMU
+  imuInit(); // 初始化IMU
+  HAL_Delay(100); // 等待IMU初始化完成
   // MS5837_Init(&hi2c1,&MS5837_info_t, 50); // 初始化MS5837压力传感器
 
   // // Initialize control loop modules
   // ControlLoop_Init();
   // uint32_t last_ctrl_ms = HAL_GetTick();
 
-  // printf("Initialization completed. \r\n");
+  printf("Starting FreeRTOS scheduler...\r\n");
 
-  xTaskCreate(Task_Led, "led", 256, NULL, tskIDLE_PRIORITY + 1, NULL);
-  
+  ControlTasks_Init();
+
   vTaskStartScheduler();
 
+  // 永远不会到达这里
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-  // Data handlers
-  ProcessIMUData(); // IMU数据处理
-  UART1_DataHandler(); // 串口命令处理
-  MS5837_Process(&hi2c1, &MS5837_info_t); //深度传感器数据处理
-
-  // 10ms control loop
-  uint32_t now = HAL_GetTick();
-  // if((uint32_t)(now - last_ctrl_ms) >= CTRL_PERIOD_MS){
-  //   last_ctrl_ms += CTRL_PERIOD_MS; // catch-up simple (could loop if drift)
-  //   if (g_control_loop_enabled) {
-  //     ControlLoop_RunIteration(now);
-  //   }
-  // }
+  HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

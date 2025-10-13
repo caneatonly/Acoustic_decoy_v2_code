@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "control_tasks.h"
+
 // 全局数据实例
 MS5837_Data_t g_ms5837_data = {0};
 IMU_Data_t g_imu_data = {0};
@@ -56,34 +58,6 @@ const MS5837_Data_t* MS5837_GetData(void)
 const IMU_Data_t* IMU_GetData(void)
 {
     return &g_imu_data;
-}
-
-// IMU数据处理函数
-void ProcessIMUData(void)
-{
-    U8 rxByte;
-    int processed_count = 0;
-    const int MAX_PROCESS_PER_LOOP = 200;  // 限制每次处理的数据量
-    
-    // 一次性读取多个字节，减少中断操作
-    while (UartFifo.Cnt > 0 && processed_count < MAX_PROCESS_PER_LOOP)
-    {
-        // 原子操作：一次性读取数据和更新指针
-        __disable_irq();
-        if (UartFifo.Cnt > 0) {
-            rxByte = UartFifo.RxBuf[UartFifo.Out];
-            if (++UartFifo.Out >= FifoSize) {
-                UartFifo.Out = 0;
-            }
-            --UartFifo.Cnt;
-        }
-        __enable_irq();
-        
-        if (Cmd_GetPkt(rxByte)) {
-            break;
-        }
-        processed_count++;
-    }
 }
 
 // 初始化电调

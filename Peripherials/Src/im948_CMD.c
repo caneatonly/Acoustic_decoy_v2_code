@@ -10,7 +10,8 @@
 *******************************************************************************/
 #include "im948_CMD.h"
 #include "bsp_usart.h"
-#include "bsp_io.h" 
+#include "bsp_io.h"
+#include "control_tasks.h"
 
 struct_UartFifo UartFifo;
 U8 targetDeviceAddress=255; // 通信地址，设为0-254指定则设备地址，设为255则不指定设备(即广播), 当需要使用485总线形式通信时通过该参数选中要操作的设备，若仅仅是串口1对1通信设为广播地址255即可
@@ -728,10 +729,15 @@ static void Cmd_RxUnpack(U8 *buf, U8 DLen)
 {
     U16 ctl;
     U8 L;
-    U8 tmpU8;
-    U16 tmpU16;
     U32 tmpU32;
-    F32 tmpX, tmpY, tmpZ, tmpAbs;
+    F32 tmpX = 0.0f, tmpY = 0.0f, tmpZ = 0.0f;
+#ifdef __Debug
+    U8 tmpU8 = 0;
+    U16 tmpU16 = 0;
+    F32 tmpAbs = 0.0f;
+#endif
+
+    (void)DLen;
 
     switch (buf[0])
     {
@@ -790,7 +796,10 @@ static void Cmd_RxUnpack(U8 *buf, U8 DLen)
             tmpX = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\taX: %.3f\r\n", tmpX); // x加速度aX
             tmpY = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\taY: %.3f\r\n", tmpY); // y加速度aY
             tmpZ = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\taZ: %.3f\r\n", tmpZ); // z加速度aZ
-            tmpAbs = sqrt(pow2(tmpX) + pow2(tmpY) + pow2(tmpZ)); Dbp("\ta_abs: %.3f\r\n", tmpAbs); // 3轴合成的绝对值
+#ifdef __Debug
+            tmpAbs = sqrt(pow2(tmpX) + pow2(tmpY) + pow2(tmpZ));
+            Dbp("\ta_abs: %.3f\r\n", tmpAbs); // 3轴合成的绝对值
+#endif
 
         }
         if ((ctl & 0x0002) != 0)
@@ -798,21 +807,30 @@ static void Cmd_RxUnpack(U8 *buf, U8 DLen)
             tmpX = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\tAX: %.3f\r\n", tmpX); // x加速度AX
             tmpY = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\tAY: %.3f\r\n", tmpY); // y加速度AY
             tmpZ = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\tAZ: %.3f\r\n", tmpZ); // z加速度AZ
-            tmpAbs = sqrt(pow2(tmpX) + pow2(tmpY) + pow2(tmpZ)); Dbp("\tA_abs: %.3f\r\n", tmpAbs); // 3轴合成的绝对值
+#ifdef __Debug
+            tmpAbs = sqrt(pow2(tmpX) + pow2(tmpY) + pow2(tmpZ));
+            Dbp("\tA_abs: %.3f\r\n", tmpAbs); // 3轴合成的绝对值
+#endif
         }
         if ((ctl & 0x0004) != 0)
         {// 角速度xyz 使用时需*scaleAngleSpeed °/s
             tmpX = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAngleSpeed; L += 2; Dbp("\tGX: %.3f\r\n", tmpX); // x角速度GX
             tmpY = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAngleSpeed; L += 2; Dbp("\tGY: %.3f\r\n", tmpY); // y角速度GY
             tmpZ = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAngleSpeed; L += 2; Dbp("\tGZ: %.3f\r\n", tmpZ); // z角速度GZ
-            tmpAbs = sqrt(pow2(tmpX) + pow2(tmpY) + pow2(tmpZ)); Dbp("\tG_abs: %.3f\r\n", tmpAbs); // 3轴合成的绝对值
+#ifdef __Debug
+            tmpAbs = sqrt(pow2(tmpX) + pow2(tmpY) + pow2(tmpZ));
+            Dbp("\tG_abs: %.3f\r\n", tmpAbs); // 3轴合成的绝对值
+#endif
         }
         if ((ctl & 0x0008) != 0)
         {// 磁场xyz 使用时需*scaleMag uT
             tmpX = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleMag; L += 2; Dbp("\tCX: %.3f\r\n", tmpX); // x磁场CX
             tmpY = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleMag; L += 2; Dbp("\tCY: %.3f\r\n", tmpY); // y磁场CY
             tmpZ = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleMag; L += 2; Dbp("\tCZ: %.3f\r\n", tmpZ); // z磁场CZ
-            tmpAbs = sqrt(pow2(tmpX) + pow2(tmpY) + pow2(tmpZ)); Dbp("\tC_abs: %.3f\r\n", tmpAbs); // 3轴合成的绝对值
+#ifdef __Debug
+            tmpAbs = sqrt(pow2(tmpX) + pow2(tmpY) + pow2(tmpZ));
+            Dbp("\tC_abs: %.3f\r\n", tmpAbs); // 3轴合成的绝对值
+#endif
         }
         if ((ctl & 0x0010) != 0)
         {// 温度 气压 高度
@@ -828,7 +846,13 @@ static void Cmd_RxUnpack(U8 *buf, U8 DLen)
         }
         if ((ctl & 0x0020) != 0)
         {// 四元素 wxyz 使用时需*scaleQuat
-            tmpAbs = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleQuat; L += 2; Dbp("\tw: %.3f\r\n", tmpAbs); // w
+#ifdef __Debug
+            tmpAbs = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleQuat;
+            L += 2;
+            Dbp("\tw: %.3f\r\n", tmpAbs); // w
+#else
+            L += 2;
+#endif
             tmpX =   (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleQuat; L += 2; Dbp("\tx: %.3f\r\n", tmpX); // x
             tmpY =   (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleQuat; L += 2; Dbp("\ty: %.3f\r\n", tmpY); // y
             tmpZ =   (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleQuat; L += 2; Dbp("\tz: %.3f\r\n", tmpZ); // z
@@ -848,29 +872,48 @@ static void Cmd_RxUnpack(U8 *buf, U8 DLen)
         }
         if ((ctl & 0x0100) != 0)
         {// 活动检测数据
-            tmpU32 = (U32)(((U32)buf[L+3]<<24) | ((U32)buf[L+2]<<16) | ((U32)buf[L+1]<<8) | ((U32)buf[L]<<0)); L += 4; Dbp("\tsteps: %lu\r\n", tmpU32); // 计步数
-            tmpU8 = buf[L]; L += 1;
-            Dbp("\t walking: %s\r\n", (tmpU8 & 0x01)?  "yes" : "no"); // 是否在走路
-            Dbp("\t running: %s\r\n", (tmpU8 & 0x02)?  "yes" : "no"); // 是否在跑步
-            Dbp("\t biking: %s\r\n",  (tmpU8 & 0x04)?  "yes" : "no"); // 是否在骑车
-            Dbp("\t driving: %s\r\n", (tmpU8 & 0x08)?  "yes" : "no"); // 是否在开车
+#ifdef __Debug
+            tmpU32 = (U32)(((U32)buf[L+3]<<24) | ((U32)buf[L+2]<<16) | ((U32)buf[L+1]<<8) | ((U32)buf[L]<<0));
+            L += 4;
+            Dbp("\tsteps: %lu\r\n", tmpU32); // 计步数
+            tmpU8 = buf[L++];
+            Dbp("\t walking: %s\r\n", (tmpU8 & 0x01) ? "yes" : "no"); // 是否在走路
+            Dbp("\t running: %s\r\n", (tmpU8 & 0x02) ? "yes" : "no"); // 是否在跑步
+            Dbp("\t biking: %s\r\n",  (tmpU8 & 0x04) ? "yes" : "no"); // 是否在骑车
+            Dbp("\t driving: %s\r\n", (tmpU8 & 0x08) ? "yes" : "no"); // 是否在开车
+#else
+            L += 5;
+#endif
         }
         if ((ctl & 0x0200) != 0)
         {// NED坐标系加速度xyz 去掉了重力 使用时需*scaleAccel m/s
             tmpX = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\tasX: %.3f\r\n", tmpX); // x加速度asX
             tmpY = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\tasY: %.3f\r\n", tmpY); // y加速度asY
             tmpZ = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAccel; L += 2; Dbp("\tasZ: %.3f\r\n", tmpZ); // z加速度asZ
-            tmpAbs = sqrt(pow2(tmpX) + pow2(tmpY) + pow2(tmpZ)); Dbp("\tas_abs: %.3f\r\n", tmpAbs); // 3轴合成的绝对值
+#ifdef __Debug
+            tmpAbs = sqrt(pow2(tmpX) + pow2(tmpY) + pow2(tmpZ));
+            Dbp("\tas_abs: %.3f\r\n", tmpAbs); // 3轴合成的绝对值
+#endif
             IMU_UpdateAccel(tmpX, tmpY, tmpZ);
         }
         if ((ctl & 0x0400) != 0)
         {// ADC的值
-            tmpU16 = (U16)(((U16)buf[L+1]<<8) | ((U16)buf[L]<<0)); L += 2; Dbp("\tadc: %u\r\n", tmpU16); // 单位mv
+#ifdef __Debug
+            tmpU16 = (U16)(((U16)buf[L+1]<<8) | ((U16)buf[L]<<0));
+            L += 2;
+            Dbp("\tadc: %u\r\n", tmpU16); // 单位mv
+#else
+            L += 2;
+#endif
         }
         if ((ctl & 0x0800) != 0)
         {// GPIO1的值
-            tmpU8 = buf[L]; L += 1;
-            Dbp("\t GPIO1  M:%X, N:%X\r\n", (tmpU8>>4)&0x0f, (tmpU8)&0x0f);
+#ifdef __Debug
+            tmpU8 = buf[L++];
+            Dbp("\t GPIO1  M:%X, N:%X\r\n", (tmpU8 >> 4) & 0x0f, (tmpU8) & 0x0f);
+#else
+            L += 1;
+#endif
         }
         isNewData = 1; // 更新了新数据
         break;
@@ -1041,10 +1084,50 @@ static void Cmd_RxUnpack(U8 *buf, U8 DLen)
  */
 static void Cmd_Write(U8 *pBuf, int Len)
 {
-    UART_Write(pBuf, Len);
+#ifdef __Debug
+    int logLen = Len;
+#endif
+
+    if (g_imuTxQueue != NULL)
+    {
+        int writeLen = Len;
+
+        if (writeLen > (int)IMU_TX_MAX_FRAME_LEN)
+        {
+            writeLen = (int)IMU_TX_MAX_FRAME_LEN;
+        }
+
+        ImuTxFrame_t frame;
+
+        frame.length = (uint16_t)writeLen;
+        Memcpy(frame.payload, pBuf, (unsigned int)writeLen);
+
+        if (xQueueSend(g_imuTxQueue, &frame, 0) != pdPASS)
+        {
+            if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+            {
+                (void)xQueueSend(g_imuTxQueue, &frame, portMAX_DELAY);
+            }
+            else
+            {
+                (void)HAL_UART_Transmit(&huart2, frame.payload, frame.length, HAL_MAX_DELAY);
+            }
+        }
+
+#ifdef __Debug
+        logLen = writeLen;
+#endif
+    }
+    else
+    {
+        (void)HAL_UART_Transmit(&huart2, (uint8_t *)pBuf, (uint16_t)Len, HAL_MAX_DELAY);
+    }
+
+#ifdef __Debug
     Dbp_U8_buf("Send to IMU:", "\r\n",
                "%02X ",
-               pBuf, Len);
+               pBuf, (unsigned int)logLen);
+#endif
 }
 
 
