@@ -26,7 +26,7 @@
         // 您原有的 ST-Link 调试配置 (已保留)
         // =================================================================================
         {
-            "name": "Build & Debug Microcontroller - ST-Link",
+            "name": "Debug - ST-Link",
             "cwd": "${workspaceFolder}",
             "type": "cortex-debug",
             "executable": "${command:cmake.launchTargetPath}",
@@ -43,9 +43,49 @@
             "stlinkPath": "${config:STM32VSCodeExtension.cubeCLT.path}/STLink-gdb-server/bin/ST-LINK_gdbserver",
             "armToolchainPath": "${config:STM32VSCodeExtension.cubeCLT.path}/GNU-tools-for-STM32/bin",
             "gdbPath": "${config:STM32VSCodeExtension.cubeCLT.path}/GNU-tools-for-STM32/bin/arm-none-eabi-gdb",
+            // 禁用自动Flash下载，使用task烧录后再调试
+            "preLaunchTask": "",
+            // ST-Link服务器参数
             "serverArgs": [
                 "-m", "0"
-            ]
+            ],
+            // 禁用GDB自动下载程序到Flash
+            "loadFiles": [],
+            // SWO配置
+            "swoConfig": {
+                "enabled": false
+            },
+            // 显示详细调试输出
+            "showDevDebugOutput": "parsed"
+        },
+        // =================================================================================
+        // 新增：先烧录再调试配置（完整流程）
+        // =================================================================================
+        {
+            "name": "Flash & Debug - ST-Link (Full)",
+            "cwd": "${workspaceFolder}",
+            "type": "cortex-debug",
+            "executable": "${command:cmake.launchTargetPath}",
+            "request": "launch",
+            "servertype": "stlink",
+            "device": "STM32F103RCTx",
+            "interface": "swd",
+            "serialNumber": "",
+            "runToEntryPoint": "main",
+            "svdFile": "${config:STM32VSCodeExtension.cubeCLT.path}/STMicroelectronics_CMSIS_SVD/STM32F103.svd",
+            "v1": false,
+            "serverpath": "${config:STM32VSCodeExtension.cubeCLT.path}/STLink-gdb-server/bin/ST-LINK_gdbserver",
+            "stm32cubeprogrammer": "${config:STM32VSCodeExtension.cubeCLT.path}/STM32CubeProgrammer/bin",
+            "stlinkPath": "${config:STM32VSCodeExtension.cubeCLT.path}/STLink-gdb-server/bin/ST-LINK_gdbserver",
+            "armToolchainPath": "${config:STM32VSCodeExtension.cubeCLT.path}/GNU-tools-for-STM32/bin",
+            "gdbPath": "${config:STM32VSCodeExtension.cubeCLT.path}/GNU-tools-for-STM32/bin/arm-none-eabi-gdb",
+            // 不使用preLaunchTask，让cortex-debug自己通过GDB下载程序
+            // 这样可以确保设备处于正确的调试状态
+            "serverArgs": [
+                "-m", "0"
+            ],
+            // 显示详细调试输出
+            "showDevDebugOutput": "both"
         },
         // =================================================================================
         // 您原有的 ST-Link Attach 配置 (已保留)
@@ -68,8 +108,10 @@
             "stlinkPath": "${config:STM32VSCodeExtension.cubeCLT.path}/STLink-gdb-server/bin/ST-LINK_gdbserver",
             "armToolchainPath": "${config:STM32VSCodeExtension.cubeCLT.path}/GNU-tools-for-STM32/bin",
             "gdbPath": "${config:STM32VSCodeExtension.cubeCLT.path}/GNU-tools-for-STM32/bin/arm-none-eabi-gdb",
+            // Attach模式：不下载程序，只连接到正在运行的MCU
             "serverArgs": [
-                "-m", "0"
+                "-m", "0",       // 连接模式
+                "--attach"       // Attach模式，不复位
             ]
         }
     ]

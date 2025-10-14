@@ -19,7 +19,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
-#include "console.h"
 #include "i2c.h"
 #include "tim.h"
 #include "usart.h"
@@ -64,6 +63,7 @@
 
 /* USER CODE BEGIN PV */
 volatile uint8_t g_control_loop_enabled = 1; // 控制循环使能标志，默认开启
+extern volatile uint32_t ulHighFrequencyTimerTicks;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -113,6 +113,7 @@ int main(void)
   MX_TIM3_Init();
   MX_I2C1_Init();
   MX_ADC1_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
 
   printf("Acoustic Decoy Initializing . . .\r\n");
@@ -148,6 +149,11 @@ int main(void)
   printf("Starting FreeRTOS scheduler...\r\n");
 
   ControlTasks_Init();
+  
+  // 配置运行时统计定时器（必须在调度器启动前调用）
+  // FreeRTOS会在启动时自动调用portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()宏
+  // 但为了显式说明，也可以在这里手动调用（二选一）
+  // ConfigTimerForRunTimeStats();
 
   vTaskStartScheduler();
 
@@ -235,7 +241,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-
+    if (htim->Instance == TIM5)
+    {
+        /* TIM5溢出，递增高16位计数器 */
+        ulHighFrequencyTimerTicks++;
+    }
   /* USER CODE END Callback 1 */
 }
 

@@ -1,5 +1,6 @@
 /* =================== FreeRTOS Hook 函数模板 =================== */
 #include "FreeRTOS.h"
+#include "console.h"
 #include "task.h"
 #include "timers.h"
 
@@ -48,10 +49,25 @@ void vApplicationTickHook(void)
 #if (configCHECK_FOR_STACK_OVERFLOW > 0)
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 {
+    /* 禁用中断防止进一步损坏 */
     taskDISABLE_INTERRUPTS();
+    
+    /* 记录错误信息（如果有调试输出） */
+    #ifdef DEBUG
+    console_printf("Stack overflow in task: %s\r\n", pcTaskName);
+    #endif
+    
+    /* 可选：点亮 LED 或设置错误标志 */
+    // HAL_GPIO_WritePin(ERROR_LED_GPIO_Port, ERROR_LED_Pin, GPIO_PIN_SET);
+    
+    /* 可选：记录到非易失性存储器 */
+    // log_error_to_flash(ERROR_STACK_OVERFLOW, pcTaskName);
+    
+    /* 死循环等待看门狗复位或调试 */
     for (;;)
     {
-        /* 栈溢出错误处理，pcTaskName 为出错任务名 */
+        /* 防止编译器优化掉空循环 */
+        __asm volatile ("nop");
     }
 }
 #endif
@@ -73,6 +89,7 @@ void vApplicationDaemonTaskStartupHook(void)
 /* 6. 静态内存分配钩子（Idle/Timer 任务内存提供）
  * 触发条件：当启用静态内存分配时（configSUPPORT_STATIC_ALLOCATION=1），
  *            内核会调用以下函数以获取空闲任务和定时器任务所需的 TCB 与栈内存。
+ * 即在此处需要手动提供IDLE和定时器任务的TCB和栈空间。
  */
 #if (configSUPPORT_STATIC_ALLOCATION == 1)
 

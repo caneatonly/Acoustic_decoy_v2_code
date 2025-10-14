@@ -63,6 +63,7 @@ target_include_directories(freertos_kernel PUBLIC
     ${KERNEL_SRC_DIR}/include
     ${FREERTOS_PORT_DIR}
     ${CMAKE_SOURCE_DIR}/Core/Inc
+    ${CMAKE_SOURCE_DIR}/Controls/Inc
 )
 
 
@@ -95,6 +96,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/freertos_hooks.c
     Controls/Src/control_tasks.c
     Controls/Src/console.c
+    Controls/Src/tasks_runtime.c
 )
 
 # Add include paths

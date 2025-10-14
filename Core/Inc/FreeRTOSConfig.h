@@ -5,6 +5,7 @@
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 
+#include "tasks_runtime.h"
 
 
 /* ========================= 硬件与时基 ========================= */
@@ -99,10 +100,10 @@
 #define INCLUDE_uxTaskGetStackHighWaterMark     1               /* 提供栈高水位 API（字节/word 视端口而定）。 */
 #define INCLUDE_uxTaskGetStackHighWaterMark2    1               /* 第二版本高水位 API（兼容不同栈增长方向）。 */
 //运行时间相关
-#define configGENERATE_RUN_TIME_STATS           0               /* 生成运行时统计信息（vTaskGetRunTimeStats()）。需要实现portCONFIGURE_TIMER_FOR_RUN_TIME_STATS 和portGET_RUN_TIME_COUNTER_VALUE */
-#define configUSE_STATS_FORMATTING_FUNCTIONS    0               /* 启用 vTaskGetRunTimeStats()/vTaskList 文本格式化（调试辅助）。 */
-// #define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()  ConfigTimerForRunTimeStats() // 实现定时器配置
-// #define portGET_RUN_TIME_COUNTER_VALUE()         GetRunTimeCounterValue()               // 实现获取运行时间计数器的值
+#define configGENERATE_RUN_TIME_STATS           1               /* 生成运行时统计信息（vTaskGetRunTimeStats()）。需要实现portCONFIGURE_TIMER_FOR_RUN_TIME_STATS 和portGET_RUN_TIME_COUNTER_VALUE */
+#define configUSE_STATS_FORMATTING_FUNCTIONS    1               /* 启用 vTaskGetRunTimeStats()/vTaskList 文本格式化（调试辅助）。 */
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()  ConfigTimerForRunTimeStats() // 实现定时器配置
+#define portGET_RUN_TIME_COUNTER_VALUE()         GetRunTimeCounterValue()               // 实现获取运行时间计数器的值
 
 
 
