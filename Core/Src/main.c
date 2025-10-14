@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "console.h"
 #include "i2c.h"
 #include "tim.h"
 #include "usart.h"
@@ -136,8 +137,8 @@ int main(void)
   // power_on(); // 打开电源 12V
   // MS5837_SetFluidDensity(&MS5837_info_t, 1000.0f); // 设置海水密度为1000 kg/m³
   // motorInit(); // 初始化电调
-  imuInit(); // 初始化IMU
-  HAL_Delay(100); // 等待IMU初始化完成
+    imuInit(); // 初始化IMU
+    HAL_Delay(100); // 等待IMU初始化完成
   // MS5837_Init(&hi2c1,&MS5837_info_t, 50); // 初始化MS5837压力传感器
 
   // // Initialize control loop modules

@@ -1,6 +1,7 @@
 #include "control_tasks.h"
 
 #include "bsp_usart.h"
+#include "console.h"
 #include "im948_CMD.h"
 #include "usart.h"
 
@@ -65,6 +66,9 @@ void Task_UartDebug(void *argument)
 
 void ControlTasks_Init(void)
 {
+  // Initialize console mutex before creating tasks
+  console_init();
+
   if (g_imuRxQueue == NULL)
   {
     g_imuRxQueue = xQueueCreate(IMU_RX_QUEUE_LENGTH, sizeof(uint8_t));
@@ -82,12 +86,12 @@ void ControlTasks_Init(void)
   status = xTaskCreate(Task_Led, "led", 256, NULL, tskIDLE_PRIORITY + 1, NULL);
   configASSERT(status == pdPASS);
 
-  status = xTaskCreate(Task_ImuProcess, "imu_proc", 512, NULL, tskIDLE_PRIORITY + 5, NULL);
+  status = xTaskCreate(Task_ImuProcess, "imu_proc", 512, NULL, tskIDLE_PRIORITY + 3, NULL);
   configASSERT(status == pdPASS);
 
-  status = xTaskCreate(Task_ImuSend, "imu_tx", 384, NULL, tskIDLE_PRIORITY + 6, NULL);
+  status = xTaskCreate(Task_ImuSend, "imu_tx", 384, NULL, tskIDLE_PRIORITY + 3, NULL);
   configASSERT(status == pdPASS);
 
-  status = xTaskCreate(Task_UartDebug, "uart_dbg", 384, NULL, tskIDLE_PRIORITY + 7, NULL);
+  status = xTaskCreate(Task_UartDebug, "uart_dbg", 384, NULL, tskIDLE_PRIORITY + 4, NULL);
   configASSERT(status == pdPASS);
 }

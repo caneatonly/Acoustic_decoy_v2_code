@@ -1,4 +1,5 @@
 #include "bsp_usart.h"
+#include "console.h"
 #include "im948_CMD.h"
 #include "bsp_io.h"
 #include "control_tasks.h"
@@ -65,7 +66,7 @@ void UART1_DataHandler(void)
         }
 
         if (uart1_overflow) {
-            printf("ERR: line too long (max %d)\r\n", UART1_RX_BUFFER_SIZE - 1);
+            console_printf("ERR: line too long (max %d)\r\n", UART1_RX_BUFFER_SIZE - 1);
             uart1_overflow = 0;
         } else if (uart1_rx_buffer[start] != '\0') {
             // 处理接收到的命令
@@ -94,7 +95,7 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
     while (n > 0 && isspace((int)cmd[n-1])) { cmd[--n] = '\0'; }
 
     // 调试信息：显示接收到的命令
-    printf("UART1 received [%u bytes]: %s\r\n", (unsigned)n, cmd);
+    console_printf("UART1 received [%u bytes]: %s\r\n", (unsigned)n, cmd);
     
     // 命令处理 - 可扩展
     if (n == 0)
@@ -103,46 +104,46 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
     }
     else if (strcmp(cmd, "help") == 0 || strcmp(cmd, "?") == 0)
     {
-        printf("Commands:\r\n");
-        printf("  help|?                - show this help\r\n");
-        printf("  ver                   - firmware version\r\n");
-        printf("  status                - quick system status\r\n");
-        printf("  fairing               - release fairing\r\n");
-        printf("  valve_open|valve_close - control valve\r\n");
-        printf("  motortest             - motor test pulse\r\n");
-        printf("  power_on|power_off    - 12V power control\r\n");
-        printf("  reset                 - System reset\r\n");
-        printf("  ctrl on|off|?         - enable/disable control loop, '?' shows state\r\n");
-        printf("  set b.kp=<f> b.kd=<f> b.margin=<f> b.eps=<f>\r\n");
-        printf("  params                - dump valve PD params\r\n");
+        console_printf("Commands:\r\n");
+        console_printf("  help|?                - show this help\r\n");
+        console_printf("  ver                   - firmware version\r\n");
+        console_printf("  status                - quick system status\r\n");
+        console_printf("  fairing               - release fairing\r\n");
+        console_printf("  valve_open|valve_close - control valve\r\n");
+        console_printf("  motortest             - motor test pulse\r\n");
+        console_printf("  power_on|power_off    - 12V power control\r\n");
+        console_printf("  reset                 - System reset\r\n");
+        console_printf("  ctrl on|off|?         - enable/disable control loop, '?' shows state\r\n");
+        console_printf("  set b.kp=<f> b.kd=<f> b.margin=<f> b.eps=<f>\r\n");
+        console_printf("  params                - dump valve PD params\r\n");
     }
     else if (strcmp(cmd, "ver") == 0)
     {
-        printf("%s\r\n", FW_VERSION_STR);
+        console_printf("%s\r\n", FW_VERSION_STR);
     }
     else if (strcmp(cmd, "fairing") == 0)
     {
         // 整流罩控制命令
         fairing_release();
-        printf("Fairing release command executed\r\n");
+        console_printf("Fairing release command executed\r\n");
     }
     else if (strcmp(cmd, "valve_open") == 0)
     {
         // 电磁阀开启命令
         valve_open();
-        printf("Valve open command executed\r\n");
+        console_printf("Valve open command executed\r\n");
     }
     else if (strcmp(cmd, "valve_close") == 0)
     {
         // 电磁阀关闭命令
         valve_close();
-        printf("Valve close command executed\r\n");
+        console_printf("Valve close command executed\r\n");
     }
     else if (strcmp(cmd,"motortest") == 0)
     {
         // 电机测试命令
         motor_test();
-        printf("Motor test command executed\r\n");
+        console_printf("Motor test command executed\r\n");
     }
     else if (strcmp(cmd, "status") == 0)
     {
@@ -150,11 +151,11 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
     const MS5837_Data_t* ms5837 = MS5837_GetData();
     const BaroADC_Data_t* baro = BaroADC_GetData();
         // 状态查询命令
-        printf("System Status:\r\n");
-        printf("  IMU Valid: %s\r\n", IMU_GetData()->data_valid ? "Yes" : "No");
-        printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
-        printf("  BARO(ADC) Valid: %s\r\n", baro->data_valid ? "Yes" : "No");
-        printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm P=%.2fkPa | BARO: %.2fkPa (%.3fV, raw=%u)\r\n", 
+        console_printf("System Status:\r\n");
+        console_printf("  IMU Valid: %s\r\n", IMU_GetData()->data_valid ? "Yes" : "No");
+        console_printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
+        console_printf("  BARO(ADC) Valid: %s\r\n", baro->data_valid ? "Yes" : "No");
+        console_printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm P=%.2fkPa | BARO: %.2fkPa (%.3fV, raw=%u)\r\n", 
             imu->angleX, imu->angleY, imu->angleZ,
             imu->accelX, imu->accelY, imu->accelZ,
             ms5837->temperature, ms5837->depth, ms5837->pressure_water, 
@@ -164,7 +165,7 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
     else if (strcmp(cmd, "reset") == 0)
     {
         // 重置命令
-        printf("System reset command received\r\n");
+        console_printf("System reset command received\r\n");
         NVIC_SystemReset();  // 执行系统重置
     }
     else if (strcmp(cmd, "power_on") == 0)
@@ -172,7 +173,7 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         // 12V 电源控制
         power_on();
         LEDstatus_on();  // 打开状态灯
-        printf("Power on command received\r\n");
+        console_printf("Power on command received\r\n");
         // Add code to handle power on functionality here
     }
     else if (strcmp(cmd, "power_off") == 0)
@@ -180,52 +181,52 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         // 12V 电源控制
         power_off();
         LEDstatus_off();  // 关闭状态灯
-        printf("Power off command received\r\n");
+        console_printf("Power off command received\r\n");
         // Add code to handle power off functionality here
     }
     else if (strncmp(cmd, "set b.kp=", 10) == 0)
     {
         float v;
-        if (sscanf(cmd+10, "%f", &v) == 1) { Valve_ControlAlgorithm_SetGains(v, -1.0f); printf("b.kp=%.4f OK\r\n", v);} 
-        else { printf("ERR: usage set b.kp=<float>\r\n"); }
+        if (sscanf(cmd+10, "%f", &v) == 1) { Valve_ControlAlgorithm_SetGains(v, -1.0f); console_printf("b.kp=%.4f OK\r\n", v);} 
+        else { console_printf("ERR: usage set b.kp=<float>\r\n"); }
     }
     else if (strncmp(cmd, "set b.kd=", 10) == 0)
     {
         float v;
-        if (sscanf(cmd+10, "%f", &v) == 1) { Valve_ControlAlgorithm_SetGains(-1.0f, v); printf("b.kd=%.4f OK\r\n", v);} 
-        else { printf("ERR: usage set b.kd=<float>\r\n"); }
+        if (sscanf(cmd+10, "%f", &v) == 1) { Valve_ControlAlgorithm_SetGains(-1.0f, v); console_printf("b.kd=%.4f OK\r\n", v);} 
+        else { console_printf("ERR: usage set b.kd=<float>\r\n"); }
     }
     else if (strncmp(cmd, "set b.margin=", 13) == 0)
     {
         float v;
-        if (sscanf(cmd+13, "%f", &v) == 1) { Valve_ControlAlgorithm_SetMargin(v); printf("b.margin=%.3f OK\r\n", v);} 
-        else { printf("ERR: usage set b.margin=<kPa>\r\n"); }
+        if (sscanf(cmd+13, "%f", &v) == 1) { Valve_ControlAlgorithm_SetMargin(v); console_printf("b.margin=%.3f OK\r\n", v);} 
+        else { console_printf("ERR: usage set b.margin=<kPa>\r\n"); }
     }
     else if (strncmp(cmd, "set b.eps=", 11) == 0)
     {
         float v;
-        if (sscanf(cmd+11, "%f", &v) == 1) { Valve_ControlAlgorithm_SetEps(v); printf("b.eps=%.3f OK\r\n", v);} 
-        else { printf("ERR: usage set b.eps=<kPa>\r\n"); }
+        if (sscanf(cmd+11, "%f", &v) == 1) { Valve_ControlAlgorithm_SetEps(v); console_printf("b.eps=%.3f OK\r\n", v);} 
+        else { console_printf("ERR: usage set b.eps=<kPa>\r\n"); }
     }
     else if (strncmp(cmd, "ctrl ", 5) == 0)
     {
         extern volatile uint8_t g_control_loop_enabled; // defined in main.c
-        if (strcmp(cmd+5, "on") == 0) { g_control_loop_enabled = 1; printf("ctrl: ON\r\n"); }
-        else if (strcmp(cmd+5, "off") == 0) { g_control_loop_enabled = 0; printf("ctrl: OFF\r\n"); }
-        else if (strcmp(cmd+5, "?") == 0) { printf("ctrl: %s\r\n", g_control_loop_enabled?"ON":"OFF"); }
-        else { printf("ERR: usage ctrl on|off|?\r\n"); }
+        if (strcmp(cmd+5, "on") == 0) { g_control_loop_enabled = 1; console_printf("ctrl: ON\r\n"); }
+        else if (strcmp(cmd+5, "off") == 0) { g_control_loop_enabled = 0; console_printf("ctrl: OFF\r\n"); }
+        else if (strcmp(cmd+5, "?") == 0) { console_printf("ctrl: %s\r\n", g_control_loop_enabled?"ON":"OFF"); }
+        else { console_printf("ERR: usage ctrl on|off|?\r\n"); }
     }
     else if (strncmp(cmd, "params", 6) == 0)
     {
         ValveControlParams_t p; Valve_ControlAlgorithm_GetParams(&p);
-        printf("Params: b.kp=%.4f b.kd=%.4f b.eps=%.3f kPa b.margin=%.3f kPa\r\n",
+        console_printf("Params: b.kp=%.4f b.kd=%.4f b.eps=%.3f kPa b.margin=%.3f kPa\r\n",
             p.Kp, p.Kd, p.eps_kpa, p.dp_margin_kpa);
     }
     else
     {
         // 未知命令
-        printf("Unknown command: %s\r\n", cmd);
-        printf("Type 'help' for a list of commands.\r\n");
+        console_printf("Unknown command: %s\r\n", cmd);
+        console_printf("Type 'help' for a list of commands.\r\n");
     }
 }
 
