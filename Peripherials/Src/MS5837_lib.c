@@ -1,14 +1,23 @@
 #include "bsp_io.h"
 #include "bsp_io_internal.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
 
 // 海平面标准气压 (mbar)
 #define SEA_LEVEL_PRESSURE_MBAR 1013.25f
+
+// I2C通信超时时间 (ms) - 适配FreeRTOS任务调度
+#define MS5837_I2C_TIMEOUT_MS   100
 
 
 MS5837_t  MS5837_info_t= {0};
 
 // 深度校准标志 - 标记是否已经进行过深度零点校准
 static bool depth_calibrated = false;
+
+// 外部互斥量声明 (在control_tasks.c中定义)
+extern SemaphoreHandle_t g_ms5837DataMutex;
 
 void MS5837_SetFluidDensity( MS5837_t *sensor, float density )
 {
@@ -25,7 +34,7 @@ void MS5837_Init( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor, uint16_t delay_ms )
 
     uint8_t cmd = MS5837_RESET_CMD;
 
-    HAL_I2C_Master_Transmit(I2Cx, MS5837_I2C_ADDR, &cmd, 1, HAL_MAX_DELAY);
+    HAL_I2C_Master_Transmit(I2Cx, MS5837_I2C_ADDR, &cmd, 1, MS5837_I2C_TIMEOUT_MS);
 
     HAL_Delay(10);
 
@@ -35,8 +44,8 @@ void MS5837_Init( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor, uint16_t delay_ms )
     {
         cmd = MS5837_PROM_READ + (i * 2);
 
-        HAL_I2C_Master_Transmit(I2Cx, MS5837_I2C_ADDR, &cmd, 1, HAL_MAX_DELAY);
-        HAL_I2C_Master_Receive (I2Cx, MS5837_I2C_ADDR, data, 2, HAL_MAX_DELAY);
+        HAL_I2C_Master_Transmit(I2Cx, MS5837_I2C_ADDR, &cmd, 1, MS5837_I2C_TIMEOUT_MS);
+        HAL_I2C_Master_Receive (I2Cx, MS5837_I2C_ADDR, data, 2, MS5837_I2C_TIMEOUT_MS);
 
         sensor -> prom_coefficients[i] = (data[0] << 8) | data[1];
     }
@@ -52,7 +61,7 @@ void MS5837_StartConversion( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor, uint8_t 
     sensor -> current_command = command;
     sensor -> conversion_start_time = HAL_GetTick();
 
-    status = HAL_I2C_Master_Transmit(I2Cx, MS5837_I2C_ADDR, &command, 1, HAL_MAX_DELAY);
+    status = HAL_I2C_Master_Transmit(I2Cx, MS5837_I2C_ADDR, &command, 1, MS5837_I2C_TIMEOUT_MS);
     if (status != HAL_OK)
     {
         sensor -> state = START_CONVERT_D1;
@@ -69,14 +78,14 @@ void MS5837_ReadADC( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor )
     uint8_t data[3];
     HAL_StatusTypeDef status;
 
-    status = HAL_I2C_Master_Transmit(I2Cx, MS5837_I2C_ADDR, &cmd, 1, HAL_MAX_DELAY);
+    status = HAL_I2C_Master_Transmit(I2Cx, MS5837_I2C_ADDR, &cmd, 1, MS5837_I2C_TIMEOUT_MS);
     if (status != HAL_OK)
     {
         sensor -> state = START_CONVERT_D1;
         return;
     }
 
-    status = HAL_I2C_Master_Receive(I2Cx, MS5837_I2C_ADDR, data, 3, HAL_MAX_DELAY);
+    status = HAL_I2C_Master_Receive(I2Cx, MS5837_I2C_ADDR, data, 3, MS5837_I2C_TIMEOUT_MS);
     if (status != HAL_OK)
     {
         sensor -> state = START_CONVERT_D1;
@@ -228,21 +237,20 @@ void MS5837_Process( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor)
 	{
 		case START_CONVERT_D1:
 			MS5837_StartConversion(I2Cx, sensor, MS5837_CONVERT_D1);
-			sensor -> state++;
+			sensor -> state = WAIT_CONVERT_D1;
 			break;
 
 		case WAIT_CONVERT_D1:
-			if(HAL_GetTick() - sensor -> conversion_start_time >= 19)
-			{
-				sensor -> state++;
-			}
+			// 使用FreeRTOS延时，等待ADC转换完成（典型值19ms，留余量20ms）
+			vTaskDelay(pdMS_TO_TICKS(20));
+			sensor -> state = READ_ADC_D1;
 			break;
 
 		case READ_ADC_D1:
 			MS5837_ReadADC(I2Cx, sensor);
 			if(sensor -> pressure_D1 != 0)
 			{
-				sensor -> state++;
+				sensor -> state = START_CONVERT_D2;
 			}
 			else if(HAL_GetTick() - sensor -> conversion_start_time > ADC_TIMEOUT)
 			{
@@ -252,21 +260,20 @@ void MS5837_Process( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor)
 
 		case START_CONVERT_D2:
 			MS5837_StartConversion(I2Cx, sensor, MS5837_CONVERT_D2);
-			sensor -> state++;
+			sensor -> state = WAIT_CONVERT_D2;
 			break;
 
 		case WAIT_CONVERT_D2:
-			if(HAL_GetTick() - sensor -> conversion_start_time >= 19)
-			{
-				sensor -> state++;
-			}
+			// 使用FreeRTOS延时，等待ADC转换完成（典型值19ms，留余量20ms）
+			vTaskDelay(pdMS_TO_TICKS(20));
+			sensor -> state = READ_ADC_D2;
 			break;
 
 		case READ_ADC_D2:
 			MS5837_ReadADC(I2Cx, sensor);
 			if(sensor -> temperature_D2 != 0)
 			{
-				sensor -> state++;
+				sensor -> state = CALCULATE_D1_D2;
 			}
 			else if(HAL_GetTick() - sensor -> conversion_start_time > ADC_TIMEOUT)
 			{
@@ -278,16 +285,21 @@ void MS5837_Process( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor)
 			MS5837_Calculation(sensor);
 			MS5837_CalibrateDepthZero(sensor);
 			
-			// 计算水深并更新全局数据结构
+			// 计算水深
 			float calculated_depth = MS5837_CalculateDepth(sensor);
 			
-			// 更新全局MS5837数据结构
-			g_ms5837_data.temperature = sensor->temperature_celsius;
-			g_ms5837_data.depth = calculated_depth;
-			g_ms5837_data.pressure_water = sensor->pressure_mbar*0.1; // 绝对压力,转换为kPa
-			g_ms5837_data.timestamp = HAL_GetTick();
-			g_ms5837_data.data_valid = true;
-			// 处理深度校准逻辑
+			// 使用互斥量保护全局数据结构更新 (线程安全)
+			if (xSemaphoreTake(g_ms5837DataMutex, portMAX_DELAY) == pdTRUE)
+			{
+				g_ms5837_data.temperature = sensor->temperature_celsius;
+				g_ms5837_data.depth = calculated_depth;
+				g_ms5837_data.pressure_water = sensor->pressure_mbar * 0.1f; // 绝对压力,转换为kPa
+				g_ms5837_data.timestamp = HAL_GetTick();
+				g_ms5837_data.data_valid = true;
+				
+				xSemaphoreGive(g_ms5837DataMutex);
+			}
+			
 			sensor -> state = START_CONVERT_D1;
 			break;
 	}

@@ -8,6 +8,8 @@
 #include <string.h>
 
 #include "control_tasks.h"
+#include "FreeRTOS.h"
+#include "semphr.h"
 
 // 全局数据实例
 MS5837_Data_t g_ms5837_data = {0};
@@ -49,10 +51,25 @@ void SensorSystem_Init(void)
     g_motor_control.last_update = HAL_GetTick();
 }
 
-// 数据访问函数
+// 数据访问函数 (线程安全版本 - Thread-Safe)
 const MS5837_Data_t* MS5837_GetData(void)
 {
-    return &g_ms5837_data;
+    static MS5837_Data_t snapshot;
+    
+    // 尝试获取互斥量，超时时间10ms
+    if (xSemaphoreTake(g_ms5837DataMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+    {
+        // 快照拷贝，避免返回指针后数据被修改
+        memcpy(&snapshot, &g_ms5837_data, sizeof(MS5837_Data_t));
+        xSemaphoreGive(g_ms5837DataMutex);
+        return &snapshot;
+    }
+    else
+    {
+        // 互斥量获取超时，返回上次的快照数据
+        snapshot.data_valid = false; // 标记数据可能过期
+        return &snapshot;
+    }
 }
 
 const IMU_Data_t* IMU_GetData(void)

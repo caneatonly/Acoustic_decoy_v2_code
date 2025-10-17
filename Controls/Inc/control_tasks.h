@@ -19,10 +19,12 @@ typedef struct
 
 extern QueueHandle_t g_imuRxQueue;
 extern QueueHandle_t g_imuTxQueue;
+extern SemaphoreHandle_t g_ms5837DataMutex;
 
 void Task_Led(void *argument);
 void Task_ImuProcess(void *argument);
 void Task_ImuSend(void *argument);
 void Task_UartDebug(void *argument);
+void Task_MS5837Process(void *argument);
 
 void ControlTasks_Init(void);
