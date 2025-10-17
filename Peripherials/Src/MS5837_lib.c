@@ -219,7 +219,7 @@ bool MS5837_IsDepthCalibrated(void)
     return depth_calibrated;
 }
 
-
+// MS5837 状态机
 void MS5837_Process( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor)
 {
 	uint16_t ADC_TIMEOUT = sensor -> delay_ms * 2;
