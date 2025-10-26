@@ -3,10 +3,15 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "FreeRTOS.h"
+#include "semphr.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// FreeRTOS 互斥量（保护所有 valve 控制算法的共享状态）
+extern SemaphoreHandle_t g_valveCtrlMutex;
 
 // 参数结构体（用于查询当前控制参数）
 typedef struct {
@@ -43,6 +48,16 @@ float Valve_GetDuty(void);
 float Valve_GetPbag(void);
 float Valve_GetPwater(void);
 float Valve_GetdPdt(void);
+
+// 批量读取接口（原子读取所有遥测数据，确保来自同一周期）
+typedef struct {
+    float duty;
+    float p_bag;
+    float p_water;
+    float dPdt;
+} ValveTelemetryData_t;
+
+void Valve_GetTelemetryData(ValveTelemetryData_t* out);
 
 // Non-blocking valve pulse scheduling is owned by valve control layer
 void valve_open_for(uint32_t ms);

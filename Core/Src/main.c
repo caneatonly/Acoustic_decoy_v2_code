@@ -125,12 +125,12 @@ int main(void)
   HAL_UART_Receive_IT(&huart1, &rx_byte_debug, 1); //Debug PA9,PA10
   HAL_UART_Receive_IT(&huart2, &rx_byte, 1);// IMU PA2,PA3
   // // HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);// 空置串口3 PB10,PB11
-  // HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3); // 启动PWM输出 TIM3_CH3 PB0 power 
-  // HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // 启动PWM输出 TIM3_CH1 PA6 fairing release
-  // HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2); // 启动PWM输出 TIM3_CH2 PA7 valve control
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3); // 启动PWM输出 TIM3_CH3 PB0 power 
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // 启动PWM输出 TIM3_CH1 PA6 fairing release
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2); // 启动PWM输出 TIM3_CH2 PA7 valve control
 
   // // 启动气压 ADC 外部触发采样（TIM3 TRGO）
-  // BaroADC_Init(&hadc1);
+  BaroADC_Init(&hadc1);
 
   // // 延时一下让传感器上电准备完毕
   // HAL_Delay(1000); // 延时1秒
@@ -138,9 +138,9 @@ int main(void)
   // power_on(); // 打开电源 12V
   // MS5837_SetFluidDensity(&MS5837_info_t, 1000.0f); // 设置海水密度为1000 kg/m³
   // motorInit(); // 初始化电调
-    imuInit(); // 初始化IMU
-    HAL_Delay(100); // 等待IMU初始化完成
-  // MS5837_Init(&hi2c1,&MS5837_info_t, 50); // 初始化MS5837压力传感器
+  imuInit(); // 初始化IMU
+  HAL_Delay(100); // 等待IMU初始化完成
+// MS5837_Init(&hi2c1,&MS5837_info_t, 50); // 初始化MS5837压力传感器
 
   // // Initialize control loop modules
   // ControlLoop_Init();
@@ -152,9 +152,6 @@ int main(void)
   
   // 配置运行时统计定时器（必须在调度器启动前调用）
   // FreeRTOS会在启动时自动调用portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()宏
-  // 但为了显式说明，也可以在这里手动调用（二选一）
-  // ConfigTimerForRunTimeStats();
-
   vTaskStartScheduler();
 
   // 永远不会到达这里

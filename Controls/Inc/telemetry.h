@@ -2,7 +2,11 @@
 #define TELEMETRY_H
 #include <stdint.h>
 #include <stdbool.h>
+#include "FreeRTOS.h"
+#include "semphr.h"
 
+// 遥测数据互斥量（extern 声明）
+extern SemaphoreHandle_t g_telemetryMutex;
 
 void Telemetry_Init(void);
 void Telemetry_Publish(uint32_t now_ms);

@@ -3,10 +3,15 @@
 #include "actuators.h"
 #include "sensors_data_get.h"
 #include "stm32f1xx_hal.h"
+#include "FreeRTOS.h"
+#include "semphr.h"
 
 #include <math.h>
 
 #define Twin_ms 1000    // 1s window
+
+// FreeRTOS 互斥量（定义）
+SemaphoreHandle_t g_valveCtrlMutex = NULL;
 
 static float duty; 
 // PD Controller Parameters 
@@ -53,6 +58,13 @@ static inline float clampf(float x, float a, float b) { return (x < a) ? a : (x 
 
 void Valve_ControlAlgorithm_Init(void)
 {
+    // 创建互斥量（只创建一次）
+    if (g_valveCtrlMutex == NULL)
+    {
+        g_valveCtrlMutex = xSemaphoreCreateMutex();
+        configASSERT(g_valveCtrlMutex != NULL);
+    }
+
     uint32_t now = HAL_GetTick();
     last_update_ms = now;
     win_start_ms = now;
@@ -79,12 +91,19 @@ void Valve_ControlAlgorithm_Init(void)
 
 void Valve_ControlAlgorithm_Update(void)
 {
+    // 获取互斥量（保护整个更新过程）
+    if (xSemaphoreTake(g_valveCtrlMutex, pdMS_TO_TICKS(10)) != pdPASS)
+    {
+        // 获取失败，跳过本次更新
+        return;
+    }
 
     if (!enabled) {
         if (g_valve_job.active) {
             Actuators_ValveClose();
             g_valve_job.active = 0;
         }
+        xSemaphoreGive(g_valveCtrlMutex);
         return;
     }
 
@@ -107,6 +126,7 @@ void Valve_ControlAlgorithm_Update(void)
         // Invalidate control; ensure valve closed and progress job state machine
         Actuators_ValveClose();
         valve_pulse_task();
+        xSemaphoreGive(g_valveCtrlMutex);
         return;
     }
 
@@ -169,6 +189,9 @@ void Valve_ControlAlgorithm_Update(void)
 
     // Progress the non-blocking pulse job
     valve_pulse_task();
+    
+    // 释放互斥量
+    xSemaphoreGive(g_valveCtrlMutex);
 }
 
 void Valve_ControlAlgorithm_Enable(bool en)
@@ -245,10 +268,71 @@ void Valve_ControlAlgorithm_GetParams(ValveControlParams_t* out)
 }
 
 // Lightweight getters to expose telemetry for balloon-state and logging
-float Valve_GetDuty(void) { return duty; }
-float Valve_GetPbag(void) { return P_bag_filt; }
-float Valve_GetPwater(void) { return P_water_filt; }
-float Valve_GetdPdt(void) { return dP_bag_dt; }
+float Valve_GetDuty(void)
+{
+    float result = 0.0f;
+    if (xSemaphoreTake(g_valveCtrlMutex, pdMS_TO_TICKS(5)) == pdPASS)
+    {
+        result = duty;
+        xSemaphoreGive(g_valveCtrlMutex);
+    }
+    return result;
+}
+
+float Valve_GetPbag(void)
+{
+    float result = 0.0f;
+    if (xSemaphoreTake(g_valveCtrlMutex, pdMS_TO_TICKS(5)) == pdPASS)
+    {
+        result = P_bag_filt;
+        xSemaphoreGive(g_valveCtrlMutex);
+    }
+    return result;
+}
+
+float Valve_GetPwater(void)
+{
+    float result = 0.0f;
+    if (xSemaphoreTake(g_valveCtrlMutex, pdMS_TO_TICKS(5)) == pdPASS)
+    {
+        result = P_water_filt;
+        xSemaphoreGive(g_valveCtrlMutex);
+    }
+    return result;
+}
+
+float Valve_GetdPdt(void)
+{
+    float result = 0.0f;
+    if (xSemaphoreTake(g_valveCtrlMutex, pdMS_TO_TICKS(5)) == pdPASS)
+    {
+        result = dP_bag_dt;
+        xSemaphoreGive(g_valveCtrlMutex);
+    }
+    return result;
+}
+
+// 批量读取接口：原子读取所有遥测数据，确保来自同一周期
+void Valve_GetTelemetryData(ValveTelemetryData_t* out)
+{
+    if (!out) return;
+    
+    // 初始化为默认值
+    out->duty = 0.0f;
+    out->p_bag = 0.0f;
+    out->p_water = 0.0f;
+    out->dPdt = 0.0f;
+    
+    // 一次性读取所有数据（互斥量保护）
+    if (xSemaphoreTake(g_valveCtrlMutex, pdMS_TO_TICKS(5)) == pdPASS)
+    {
+        out->duty = duty;
+        out->p_bag = P_bag_filt;
+        out->p_water = P_water_filt;
+        out->dPdt = dP_bag_dt;
+        xSemaphoreGive(g_valveCtrlMutex);
+    }
+}
 
 // Non-blocking pulse API ownership moved here
 void valve_open_for(uint32_t ms)
