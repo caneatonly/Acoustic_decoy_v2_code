@@ -6,13 +6,14 @@
 #define FREERTOS_CONFIG_H
 
 #include "tasks_runtime.h"
+#include <stdint.h>
 
 
 /* ========================= 硬件与时基 ========================= */
 #define configCPU_CLOCK_HZ              ( ( unsigned long ) 72000000 )  /* CPU 主频（Hz）：用于 SysTick/时间基计算，应与 SystemClock_Config 一致。 */
 #define configTICK_RATE_HZ              1000                            /* RTOS 节拍频率（Hz）：1kHz=1ms 分辨率，越高开销越大但精度更高。 */
 #define configMINIMAL_STACK_SIZE        256                             /* 空闲任务最小栈深（word，Cortex-M 每 word = 4 字节）。 */
-#define configTOTAL_HEAP_SIZE           (24 * 1024)                     /* 动态内存堆大小（字节）：供 pvPortMalloc 使用；与所选 heap_x.c 匹配。 */
+#define configTOTAL_HEAP_SIZE           (32 * 1024)                     /* 动态内存堆大小（字节）：供 pvPortMalloc 使用；与所选 heap_x.c 匹配。增加到32KB以支持所有任务和队列 */
 
 /* =========================== 调度行为 =========================== */
 #define configUSE_PREEMPTION            1                               /* 抢占式调度：高优先级就绪任务立即运行。 */
@@ -53,10 +54,10 @@
 
 /* ============================ 错误检测 =========================== */
 #define configCHECK_FOR_STACK_OVERFLOW  2                               /* 栈溢出检测：2=方法2（更严格）。需实现 vApplicationStackOverflowHook。 */
+void vAssertCalled( const char * pcFile, int line, const char * pcExpr, uintptr_t value );
 #define configASSERT( x ) \
     if( ( x ) == 0 ) { \
-        taskDISABLE_INTERRUPTS(); \
-        for( ; ; ); \
+        vAssertCalled( __FILE__, __LINE__, #x, ( uintptr_t ) ( x ) ); \
     }                                                         /* 运行时断言：开发期早期暴露配置/调用错误。 */
 #define configUSE_MALLOC_FAILED_HOOK      1                               /* 内存分配失败钩子 vApplicationMallocFailedHook。 */
 #define configCHECK_HANDLER_INSTALLATION  0             /* 用于检查三个核心中断函数是否配置正确，1=启用检查，0=禁用检查 */

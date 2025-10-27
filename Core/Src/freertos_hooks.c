@@ -3,6 +3,44 @@
 #include "console.h"
 #include "task.h"
 #include "timers.h"
+#include <stdint.h>
+
+/* 捕获最近一次断言信息，便于调试器查看 */
+volatile const char * g_pcLastAssertFile = NULL;
+volatile int g_iLastAssertLine = 0;
+volatile const char * g_pcLastAssertExpr = NULL;
+volatile uintptr_t g_xLastAssertValue = 0U;
+
+void vAssertCalled( const char * pcFile, int line, const char * pcExpr, uintptr_t value )
+{
+    g_pcLastAssertFile = pcFile;
+    g_iLastAssertLine = line;
+    g_pcLastAssertExpr = pcExpr;
+    g_xLastAssertValue = value;
+
+    const char * pcTaskName = "<no-task>";
+    if( xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED )
+    {
+        TaskHandle_t xTask = xTaskGetCurrentTaskHandle();
+        if( xTask != NULL )
+        {
+            pcTaskName = pcTaskGetName( xTask );
+        }
+    }
+
+    /* 尽可能输出调试信息（若控制台已初始化）。 */
+    console_printf("\r\n*** FreeRTOS ASSERT ***\r\nfile: %s\r\nline: %d\r\nexpr: %s\r\nvalue: 0x%08lX\r\ntask: %s\r\n", pcFile, line, pcExpr, ( unsigned long ) value, pcTaskName );
+
+    taskDISABLE_INTERRUPTS();
+
+    /* 触发 BKPT 方便调试器捕获。 */
+    __asm volatile ( "bkpt 0" );
+
+    for( ;; )
+    {
+        __asm volatile ( "nop" );
+    }
+}
 
 
 /* 1. 空闲任务钩子（Idle Hook）
@@ -23,10 +61,16 @@ void vApplicationIdleHook(void)
 #if (configUSE_MALLOC_FAILED_HOOK == 1)
 void vApplicationMallocFailedHook(void)
 {
+    /* 输出调试信息（如果串口已初始化） */
+
+    console_printf("FATAL: Heap allocation failed! Increase configTOTAL_HEAP_SIZE\r\n");
+
+    
     taskDISABLE_INTERRUPTS();
     for (;;)
     {
         /* 内存分配失败，通常是堆大小不够 */
+        /* 建议：增加 FreeRTOSConfig.h 中的 configTOTAL_HEAP_SIZE */
     }
 }
 #endif
@@ -49,6 +93,8 @@ void vApplicationTickHook(void)
 #if (configCHECK_FOR_STACK_OVERFLOW > 0)
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 {
+    ( void ) xTask;
+
     /* 禁用中断防止进一步损坏 */
     taskDISABLE_INTERRUPTS();
     
@@ -80,9 +126,9 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 void vApplicationDaemonTaskStartupHook(void)
 {
     /* 在调度器启动后，启动软件定时器等一次性初始化 */
-        (void)xTimerStart(xSafetyMonitorTimer, 0);
-        portCONFIGURE_TIMER_FOR_RUN_TIME_STATS();
-    
+    /* 注意：不要在这里启动未创建的定时器！会导致断言失败 */
+    // (void)xTimerStart(xSafetyMonitorTimer, 0);  // BUG: xSafetyMonitorTimer 未定义！
+    portCONFIGURE_TIMER_FOR_RUN_TIME_STATS();
 }
 #endif
 

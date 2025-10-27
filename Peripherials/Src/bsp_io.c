@@ -55,6 +55,12 @@ void SensorSystem_Init(void)
 const MS5837_Data_t* MS5837_GetData(void)
 {
     static MS5837_Data_t snapshot;
+
+    if (g_ms5837DataMutex == NULL)
+    {
+        memcpy(&snapshot, &g_ms5837_data, sizeof(MS5837_Data_t));
+        return &snapshot;
+    }
     
     // 尝试获取互斥量，超时时间10ms
     if (xSemaphoreTake(g_ms5837DataMutex, pdMS_TO_TICKS(10)) == pdTRUE)

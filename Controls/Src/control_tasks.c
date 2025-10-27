@@ -439,6 +439,9 @@ void ControlTasks_Init(void)
     configASSERT(g_ms5837DataMutex != NULL);
   }
 
+  /* Valve control relies on MS5837 mutex for sensor snapshots. */
+  Valve_ControlAlgorithm_Init();
+
   BaseType_t status;
 
   // 创建LED心跳任务（最低优先级）
@@ -474,10 +477,12 @@ void ControlTasks_Init(void)
   configASSERT(status == pdPASS);
 
   // 创建任务管理器任务（高优先级 - 负责状态更新和数据采集）
-  status = xTaskCreate(Task_MissionManager, "mission_mgr", 768, NULL, tskIDLE_PRIORITY + 5, NULL);
+  // 栈大小优化: 768->512 words (任务逻辑简单，无深度递归)
+  status = xTaskCreate(Task_MissionManager, "mission_mgr", 512, NULL, tskIDLE_PRIORITY + 4, NULL);
   configASSERT(status == pdPASS);
 
   // 创建任务执行机任务（高优先级 - 负责控制输出）
-  status = xTaskCreate(Task_MissionExecutor, "mission_exec", 768, NULL, tskIDLE_PRIORITY + 5, NULL);
+  // 栈大小优化: 768->512 words (Mission_Execute不涉及复杂计算)
+  status = xTaskCreate(Task_MissionExecutor, "mission_exec", 512, NULL, tskIDLE_PRIORITY + 4, NULL);
   configASSERT(status == pdPASS);
 }
