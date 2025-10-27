@@ -1,11 +1,14 @@
 #include "mission_manager.h"
 #include "actuators.h"
 #include "control_config.h"
+#include "console.h"
 #include <string.h>
 #include <stdbool.h>
 #include <math.h>
 #include "balloon_state.h"
 #include "stm32f1xx_hal.h"
+#include "FreeRTOS.h"
+#include "task.h"
 #include <stdio.h>
 
 
@@ -138,19 +141,19 @@ void Mission_Update(uint32_t now_ms, float depth_m, float vel_mps, balloon_state
                     Actuators_ValveClose();
                     Actuators_12V_PowerOff();
                     while (1) {
-                        printf("Recovery complete: Surface reached, shutting down.\r\n");
+                        console_printf("Recovery complete: Surface reached, shutting down.\r\n");
                         Actuators_LedToggle();
-                        HAL_Delay(1000);
+                        vTaskDelay(pdMS_TO_TICKS(1000));
                     }
                 }
             }
             break; }
         case MISSION_FAILSAFE:{
             while (1) {
-                printf("Mission_Stopped: Water Detect failed ,Entering Failsafe\r\n");
+                console_printf("Mission_Stopped: Water Detect failed ,Entering Failsafe\r\n");
                 Actuators_LedToggle();
                 Actuators_SetMotorPwm(1500); // 停止推进器
-                HAL_Delay(1000);
+                vTaskDelay(pdMS_TO_TICKS(1000));
             }
         }
         default:

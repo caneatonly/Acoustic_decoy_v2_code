@@ -2,6 +2,7 @@
 #include "actuators.h"
 #include "valve_ctrl.h"
 #include "control_config.h"
+#include "control_tasks.h"
 
 void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth_ctrl_t* ctrl, mission_status_t* s)
 {
@@ -41,6 +42,9 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
             if (state_changed) {
                 // 进入 PREP_HOLD 时释放整流罩
                 Actuators_FairingRelease();
+                if (g_balloonStartSem != NULL) {
+                    (void)xSemaphoreGive(g_balloonStartSem);
+                }
                 Mission_AckStateChange();
                 // 进入零速保持前重置控制器积分，避免残余积分导致漂移
                 DepthCtrl_ResetIntegrators(ctrl);

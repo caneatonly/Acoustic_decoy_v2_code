@@ -26,6 +26,7 @@ extern SemaphoreHandle_t g_ms5837DataMutex;
 extern SemaphoreHandle_t g_depthEstMutex;
 extern SemaphoreHandle_t g_depthCtrlMutex;
 extern SemaphoreHandle_t g_balloonMutex;
+extern SemaphoreHandle_t g_balloonStartSem;
 
 // Task function declarations
 void Task_Led(void *argument);

@@ -34,6 +34,7 @@ static balloon_status_t g_balloon = {0};
 SemaphoreHandle_t g_depthEstMutex = NULL;
 SemaphoreHandle_t g_depthCtrlMutex = NULL;
 SemaphoreHandle_t g_balloonMutex = NULL;
+SemaphoreHandle_t g_balloonStartSem = NULL;
 
 void Task_Led(void *argument)
 {
@@ -170,6 +171,10 @@ void Task_DepthEstimator(void *argument)
 void Task_BalloonStateMachine(void *argument)
 {
   (void)argument;
+  if (g_balloonStartSem != NULL)
+  {
+    (void)xSemaphoreTake(g_balloonStartSem, portMAX_DELAY);
+  }
   
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xPeriod = pdMS_TO_TICKS(50); // 50ms, 20Hz
@@ -418,6 +423,12 @@ void ControlTasks_Init(void)
   {
     g_balloonMutex = xSemaphoreCreateMutex();
     configASSERT(g_balloonMutex != NULL);
+  }
+
+  if (g_balloonStartSem == NULL)
+  {
+    g_balloonStartSem = xSemaphoreCreateBinary();
+    configASSERT(g_balloonStartSem != NULL);
   }
 
   if (g_imuRxQueue == NULL)
