@@ -85,6 +85,7 @@ void Task_UartDebug(void *argument)
   for (;;)
   {
     UART1_DataHandler();
+    // 防止饿死其他任务
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
@@ -109,8 +110,7 @@ void Task_MS5837Process(void *argument)
     // 调用MS5837状态机处理函数
     // 状态机会根据当前状态自动处理延时（WAIT状态会调用vTaskDelay）
     MS5837_Process(&hi2c1, &MS5837_info_t);
-    // 对于需要等待的状态（WAIT_CONVERT），状态机内部会调用vTaskDelay(20ms)
-    // 对于快速状态（START/READ/CALCULATE），这里的5ms延时防止任务饿死其他低优先级任务
+    // 防止任务饿死其他低优先级任务
     vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
@@ -149,6 +149,7 @@ void Task_DepthEstimator(void *argument)
     }
     
     // 周期性延时
+    
     vTaskDelayUntil(&xLastWakeTime, xPeriod);
   }
 }
@@ -238,9 +239,15 @@ void Task_Telemetry(void *argument)
       xSemaphoreGive(g_depthEstMutex);
     }
     uint32_t now_ms = HAL_GetTick();
-    mission_status_t *mstat = Mission_GetStatus();
-    Telemetry_SetMissionState((int)mstat->state);
-    Telemetry_SetDepth(depth_est, velocity_est, mstat->target_depth_m);
+    mission_status_t mission_snapshot = {0};
+    mission_status_t *mission_locked = Mission_LockStatus(pdMS_TO_TICKS(5));
+    if (mission_locked != NULL)
+    {
+      mission_snapshot = *mission_locked;
+      Mission_UnlockStatus();
+    }
+    Telemetry_SetMissionState((int)mission_snapshot.state);
+    Telemetry_SetDepth(depth_est, velocity_est, mission_snapshot.target_depth_m);
 
     // 原子读取所有气阀遥测数据（一次锁内完成，确保数据来自同一周期）
     ValveTelemetryData_t valve_data;
@@ -254,11 +261,11 @@ void Task_Telemetry(void *argument)
     int16_t pwm_pub = CTRL_PWM_NEUTRAL;
     if (xSemaphoreTake(g_depthCtrlMutex, pdMS_TO_TICKS(5)) == pdPASS)
     {
-      vref_pub = (mstat->state == MISSION_APPROACH || 
-                  mstat->state == MISSION_PREP_HOLD || 
-                  mstat->state == MISSION_DEPTH_HOLD)
+      vref_pub = (mission_snapshot.state == MISSION_APPROACH || 
+                  mission_snapshot.state == MISSION_PREP_HOLD || 
+                  mission_snapshot.state == MISSION_DEPTH_HOLD)
                     ? DepthCtrl_GetVref(&g_depth_ctrl) : 0.0f;
-      pwm_pub = mstat->motor_active ? DepthCtrl_GetPwm(&g_depth_ctrl) : CTRL_PWM_NEUTRAL;
+      pwm_pub = mission_snapshot.motor_active ? DepthCtrl_GetPwm(&g_depth_ctrl) : CTRL_PWM_NEUTRAL;
       xSemaphoreGive(g_depthCtrlMutex);
     }
     Telemetry_SetControl(vref_pub, pwm_pub);
@@ -348,15 +355,16 @@ void Task_MissionExecutor(void *argument)
       xSemaphoreGive(g_depthEstMutex);
     }
     
-    // 2. 获取当前任务状态
-    mission_status_t *mstat = Mission_GetStatus();
-    
-    // 3. 根据任务状态执行动作
-
-    if (xSemaphoreTake(g_depthCtrlMutex, pdMS_TO_TICKS(5)) == pdPASS)
+    // 2. 获取当前任务状态并执行动作
+    mission_status_t *mstat = Mission_LockStatus(pdMS_TO_TICKS(5));
+    if (mstat != NULL)
     {
-      Mission_Execute(now_ms, depth_est, velocity_est, &g_depth_ctrl, mstat);
-      xSemaphoreGive(g_depthCtrlMutex);
+      if (xSemaphoreTake(g_depthCtrlMutex, pdMS_TO_TICKS(5)) == pdPASS)
+      {
+        Mission_Execute(now_ms, depth_est, velocity_est, &g_depth_ctrl, mstat);
+        xSemaphoreGive(g_depthCtrlMutex);
+      }
+      Mission_UnlockStatus();
     }
     
     // 周期性延时

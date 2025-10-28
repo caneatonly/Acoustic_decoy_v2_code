@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "balloon_state.h"
 #include "depth_cascaded_ctrl.h"
+#include "FreeRTOS.h"
 
 typedef enum {
     MISSION_INIT = 0,
@@ -13,7 +14,8 @@ typedef enum {
     MISSION_DEPTH_HOLD,          //4 深度保持阶段
     MISSION_DWELL_MONITOR,       //5 停留监测阶段
     MISSION_RECOVERY_ASCEND,     //6 恢复上升阶段
-    MISSION_FAILSAFE             //7 紧急状态
+    MISSION_RECOVERY_SHUTDOWN,   //7 恢复停机阶段（到达水面后的安全停机）
+    MISSION_FAILSAFE             //8 紧急状态
 } mission_state_t;
 
 typedef struct {
@@ -34,6 +36,10 @@ void Mission_Update(uint32_t now_ms, float depth_m, float depth_vel_mps, balloon
 void Mission_RequestRecovery(void);
 void Mission_AbortFailsafe(const char *reason);
 mission_status_t* Mission_GetStatus(void);
+
+// Thread-safe access helpers (callers must balance lock/unlock)
+mission_status_t* Mission_LockStatus(TickType_t timeout_ticks);
+void Mission_UnlockStatus(void);
 
 // State transition helpers
 // Returns true if mission state changed since last acknowledge

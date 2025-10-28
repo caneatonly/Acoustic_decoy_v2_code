@@ -35,7 +35,7 @@ volatile uint8_t uart1_data_ready = 0;
 static volatile uint8_t uart1_overflow = 0;
 
 // Simple version string for 'ver' command
-static const char* FW_VERSION_STR = "Acoustic_decoy_v2 FW - build " __DATE__ " " __TIME__;
+static const char* FW_VERSION_STR = "Acoustic_decoy_v2 FW - based on FreeRTOS " __DATE__ " " __TIME__;
 
 
 
@@ -113,9 +113,7 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         console_printf("  motortest             - motor test pulse\r\n");
         console_printf("  power_on|power_off    - 12V power control\r\n");
         console_printf("  reset                 - System reset\r\n");
-        console_printf("  ctrl on|off|?         - enable/disable control loop, '?' shows state\r\n");
-        console_printf("  set b.kp=<f> b.kd=<f> b.margin=<f> b.eps=<f>\r\n");
-        console_printf("  params                - dump valve PD params\r\n");
+        console_printf("  ctrl on|off|?         - enable/disable Control Logics, '?' shows state\r\n");
     }
     else if (strcmp(cmd, "ver") == 0)
     {
@@ -184,30 +182,6 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         console_printf("Power off command received\r\n");
         // Add code to handle power off functionality here
     }
-    else if (strncmp(cmd, "set b.kp=", 10) == 0)
-    {
-        float v;
-        if (sscanf(cmd+10, "%f", &v) == 1) { Valve_ControlAlgorithm_SetGains(v, -1.0f); console_printf("b.kp=%.4f OK\r\n", v);} 
-        else { console_printf("ERR: usage set b.kp=<float>\r\n"); }
-    }
-    else if (strncmp(cmd, "set b.kd=", 10) == 0)
-    {
-        float v;
-        if (sscanf(cmd+10, "%f", &v) == 1) { Valve_ControlAlgorithm_SetGains(-1.0f, v); console_printf("b.kd=%.4f OK\r\n", v);} 
-        else { console_printf("ERR: usage set b.kd=<float>\r\n"); }
-    }
-    else if (strncmp(cmd, "set b.margin=", 13) == 0)
-    {
-        float v;
-        if (sscanf(cmd+13, "%f", &v) == 1) { Valve_ControlAlgorithm_SetMargin(v); console_printf("b.margin=%.3f OK\r\n", v);} 
-        else { console_printf("ERR: usage set b.margin=<kPa>\r\n"); }
-    }
-    else if (strncmp(cmd, "set b.eps=", 11) == 0)
-    {
-        float v;
-        if (sscanf(cmd+11, "%f", &v) == 1) { Valve_ControlAlgorithm_SetEps(v); console_printf("b.eps=%.3f OK\r\n", v);} 
-        else { console_printf("ERR: usage set b.eps=<kPa>\r\n"); }
-    }
     else if (strncmp(cmd, "ctrl ", 5) == 0)
     {
         extern volatile uint8_t g_control_loop_enabled; // defined in main.c
@@ -216,12 +190,6 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         else if (strcmp(cmd+5, "?") == 0) { console_printf("ctrl: %s\r\n", g_control_loop_enabled?"ON":"OFF"); }
         else { console_printf("ERR: usage ctrl on|off|?\r\n"); }
     }
-    else if (strncmp(cmd, "params", 6) == 0)
-    {
-        ValveControlParams_t p; Valve_ControlAlgorithm_GetParams(&p);
-        console_printf("Params: b.kp=%.4f b.kd=%.4f b.eps=%.3f kPa b.margin=%.3f kPa\r\n",
-            p.Kp, p.Kd, p.eps_kpa, p.dp_margin_kpa);
-    }
     else
     {
         // 未知命令
@@ -229,15 +197,6 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         console_printf("Type 'help' for a list of commands.\r\n");
     }
 }
-
-// 描述: 被Cmd_Write调用，用于向IMU发送数据
-// 返回: 返回发送字节数
-int UART_Write(uint8_t *buf, int Len)
-{
-	HAL_UART_Transmit(&huart2, buf, Len, 1000);
-	return Len;
-}
-
 
 /**
     * @brief UART接收完成回调函数

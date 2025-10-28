@@ -1,6 +1,7 @@
 #include "mission_exec.h"
 #include "actuators.h"
 #include "valve_ctrl.h"
+#include "console.h"
 #include "control_config.h"
 #include "control_tasks.h"
 
@@ -12,6 +13,8 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
 
     // 检测任务状态是否变化
     const bool state_changed = Mission_HasStateChanged();
+    static uint32_t recovery_heartbeat_next_ms = 0;
+    static uint32_t failsafe_heartbeat_next_ms = 0;
 
     // Defaults per cycle
     s->valve_enable = false;
@@ -76,6 +79,56 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
                 DepthCtrl_ResetIntegrators(ctrl);
             }
             break;
+        case MISSION_RECOVERY_SHUTDOWN:
+            s->motor_active = false;
+            s->valve_enable = false;
+            if (state_changed) {
+                Mission_AckStateChange();
+                recovery_heartbeat_next_ms = now_ms;
+                DepthCtrl_ResetIntegrators(ctrl);
+                if (Valve_ControlAlgorithm_IsEnabled()) {
+                    Valve_ControlAlgorithm_Enable(false);
+                }
+                Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL);
+                Actuators_ValveClose();
+                Actuators_12V_PowerOff();
+            }
+
+            if (now_ms >= recovery_heartbeat_next_ms) {
+                console_printf("Recovery complete: Surface reached, shutting down.\r\n");
+                Actuators_LedToggle();
+                recovery_heartbeat_next_ms = now_ms + 1000u;
+            }
+
+            Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL);
+            Actuators_ValveClose();
+            Actuators_12V_PowerOff();
+            return;
+        case MISSION_FAILSAFE:
+            s->motor_active = false;
+            s->valve_enable = false;
+            if (state_changed) {
+                Mission_AckStateChange();
+                failsafe_heartbeat_next_ms = now_ms;
+                DepthCtrl_ResetIntegrators(ctrl);
+                if (Valve_ControlAlgorithm_IsEnabled()) {
+                    Valve_ControlAlgorithm_Enable(false);
+                }
+                Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL);
+                Actuators_ValveClose();
+                Actuators_12V_PowerOff();
+            }
+
+            if (now_ms >= failsafe_heartbeat_next_ms) {
+                console_printf("Mission stopped: FAILSAFE active.\r\n");
+                Actuators_LedToggle();
+                failsafe_heartbeat_next_ms = now_ms + 1000u;
+            }
+
+            Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL);
+            Actuators_ValveClose();
+            Actuators_12V_PowerOff();
+            return;
         default:
             // keep defaults
             break;
