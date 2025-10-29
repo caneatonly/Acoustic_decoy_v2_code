@@ -7,7 +7,6 @@
 #include "bsp_io.h"
 
 extern uint8_t rx_byte_debug;
-extern uint8_t rx_byte;
 extern uint8_t uart3_rx_buffer[32]; 
 extern uint8_t uart3_rx_byte;           // 单字节接收变量
 extern uint8_t uart3_rx_index;          // 缓冲区索引
@@ -29,6 +28,8 @@ int UART_Write(uint8_t *buf, int Len);
 // UART1蓝牙调试数据处理函数
 void UART1_DataHandler(void); //UART1蓝牙调试数据处理函数，在主循环中调用
 void ProcessUART1Command(uint8_t *command, uint8_t length); //处理UART1接收到的命令 - 自定义接口在这里
+
+HAL_StatusTypeDef IMU_UART_StartDmaReception(void);
 
 
 

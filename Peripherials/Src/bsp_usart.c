@@ -9,6 +9,8 @@
 #include "stdio.h"
 #include "baro_adc.h"
 #include "valve_ctrl.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -23,7 +25,6 @@ PUTCHAR_PROTOTYPE
 }
 
 uint8_t rx_byte_debug;
-uint8_t rx_byte;
 uint8_t uart3_rx_buffer[32];
 uint8_t uart3_rx_byte;
 uint8_t uart3_rx_index=0;
@@ -33,6 +34,17 @@ uint8_t uart1_rx_buffer[UART1_RX_BUFFER_SIZE];
 volatile uint8_t uart1_rx_index = 0;
 volatile uint8_t uart1_data_ready = 0;
 static volatile uint8_t uart1_overflow = 0;
+
+static volatile uint32_t uart1_error_count = 0;
+static volatile uint32_t uart2_error_count = 0;
+static volatile uint32_t uart3_error_count = 0;
+
+#define IMU_UART_DMA_BUFFER_COUNT   2U
+#define IMU_UART_DMA_BUFFER_SIZE    256U
+
+static uint8_t imu_dma_buffer[IMU_UART_DMA_BUFFER_COUNT][IMU_UART_DMA_BUFFER_SIZE];
+static uint8_t imu_dma_active_index = 0U;
+static uint16_t imu_dma_consumed = 0U;
 
 // Simple version string for 'ver' command
 static const char* FW_VERSION_STR = "Acoustic_decoy_v2 FW - based on FreeRTOS " __DATE__ " " __TIME__;
@@ -240,20 +252,83 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         // 重新启用接收中断
         HAL_UART_Receive_IT(huart, &rx_byte_debug, 1);
     }
-    else if (huart->Instance == USART2)
+}
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+    if (huart->Instance == USART2)
     {
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        uint8_t *rx_buf = imu_dma_buffer[imu_dma_active_index];
 
-        if (g_imuRxQueue != NULL)
+        if ((g_imuRxQueue != NULL) && (Size > imu_dma_consumed) && (Size <= IMU_UART_DMA_BUFFER_SIZE))
         {
-            (void)xQueueSendFromISR(g_imuRxQueue, &rx_byte, &xHigherPriorityTaskWoken);
+            uint16_t start = imu_dma_consumed;
+            uint16_t new_bytes = Size - imu_dma_consumed;
+
+            for (uint16_t i = 0U; i < new_bytes; ++i)
+            {
+                (void)xQueueSendFromISR(g_imuRxQueue, &rx_buf[start + i], &xHigherPriorityTaskWoken);
+            }
+
+            imu_dma_consumed = Size;
         }
 
-        // 重新启用接收中断，以便继续接收数据
-        HAL_UART_Receive_IT(huart, &rx_byte, 1);
+        HAL_UART_RxEventTypeTypeDef event = HAL_UARTEx_GetRxEventType(huart);
+        if ((event == HAL_UART_RXEVENT_IDLE) || (event == HAL_UART_RXEVENT_TC))
+        {
+            uint8_t next_index = (imu_dma_active_index + 1U) % IMU_UART_DMA_BUFFER_COUNT;
+            imu_dma_consumed = 0U;
+
+            if (HAL_UARTEx_ReceiveToIdle_DMA(huart, imu_dma_buffer[next_index], IMU_UART_DMA_BUFFER_SIZE) == HAL_OK)
+            {
+                imu_dma_active_index = next_index;
+            }
+            else
+            {
+                uart2_error_count++;
+                /* 再次尝试使用当前缓冲区恢复接收 */
+                (void)HAL_UARTEx_ReceiveToIdle_DMA(huart, imu_dma_buffer[imu_dma_active_index], IMU_UART_DMA_BUFFER_SIZE);
+            }
+        }
 
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
+}
 
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1)
+    {
+        uart1_error_count++;
+        __HAL_UART_CLEAR_OREFLAG(huart);
+        huart->ErrorCode = HAL_UART_ERROR_NONE;
+        (void)HAL_UART_Receive_IT(huart, &rx_byte_debug, 1);
+    }
+    else if (huart->Instance == USART2)
+    {
+        uart2_error_count++;
+        __HAL_UART_CLEAR_OREFLAG(huart);
+        huart->ErrorCode = HAL_UART_ERROR_NONE;
+        (void)HAL_UART_DMAStop(huart);
+        __HAL_UART_CLEAR_IDLEFLAG(huart);
+        imu_dma_active_index = 0U;
+        imu_dma_consumed = 0U;
+        (void)HAL_UARTEx_ReceiveToIdle_DMA(huart, imu_dma_buffer[imu_dma_active_index], IMU_UART_DMA_BUFFER_SIZE);
+    }
+    else if (huart->Instance == USART3)
+    {
+        uart3_error_count++;
+        __HAL_UART_CLEAR_OREFLAG(huart);
+        huart->ErrorCode = HAL_UART_ERROR_NONE;
+        (void)HAL_UART_Receive_IT(huart, &uart3_rx_byte, 1);
+    }
+}
+
+HAL_StatusTypeDef IMU_UART_StartDmaReception(void)
+{
+    imu_dma_active_index = 0U;
+    imu_dma_consumed = 0U;
+    return HAL_UARTEx_ReceiveToIdle_DMA(&huart2, imu_dma_buffer[imu_dma_active_index], IMU_UART_DMA_BUFFER_SIZE);
 }
 

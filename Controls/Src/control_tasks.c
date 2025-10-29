@@ -222,55 +222,71 @@ void Task_Telemetry(void *argument)
   
   for (;;)
   {    
+    const IMU_Data_t* imu = IMU_GetData();
+    const MS5837_Data_t* ms5837 = MS5837_GetData();
+    const BaroADC_Data_t* baro = BaroADC_GetData();
+        // 状态查询命令
+        console_printf("System Status:\r\n");
+        console_printf("  IMU Valid: %s\r\n", IMU_GetData()->data_valid ? "Yes" : "No");
+        console_printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
+        console_printf("  BARO(ADC) Valid: %s\r\n", baro->data_valid ? "Yes" : "No");
+        console_printf("timestamp: IMU=%u MS5837=%u BARO=%u\r\n",
+            imu->timestamp, ms5837->timestamp, baro->timestamp);
+        console_printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm P=%.2fkPa | BARO: %.2fkPa (%.3fV, raw=%u)\r\n", 
+            imu->angleX, imu->angleY, imu->angleZ,
+            imu->accelX, imu->accelY, imu->accelZ,
+            ms5837->temperature, ms5837->depth, ms5837->pressure_water, 
+            baro->pressure_bag, baro->voltage_v, baro->raw);
 
-    balloon_state_t balloon_state = BALLOON_INFLATING;
-    if (xSemaphoreTake(g_balloonMutex, pdMS_TO_TICKS(5)) == pdPASS)
-    {
-      balloon_state = g_balloon.state;
-      xSemaphoreGive(g_balloonMutex);
-    }
-    Telemetry_SetBalloon((int)balloon_state);   
-    float depth_est = 0.0f;
-    float velocity_est = 0.0f;
-    if (xSemaphoreTake(g_depthEstMutex, pdMS_TO_TICKS(5)) == pdPASS)
-    {
-      depth_est = DepthEst_GetDepth(&g_depth_est);
-      velocity_est = DepthEst_GetVelocity(&g_depth_est);
-      xSemaphoreGive(g_depthEstMutex);
-    }
-    uint32_t now_ms = HAL_GetTick();
-    mission_status_t mission_snapshot = {0};
-    mission_status_t *mission_locked = Mission_LockStatus(pdMS_TO_TICKS(5));
-    if (mission_locked != NULL)
-    {
-      mission_snapshot = *mission_locked;
-      Mission_UnlockStatus();
-    }
-    Telemetry_SetMissionState((int)mission_snapshot.state);
-    Telemetry_SetDepth(depth_est, velocity_est, mission_snapshot.target_depth_m);
 
-    // 原子读取所有气阀遥测数据（一次锁内完成，确保数据来自同一周期）
-    ValveTelemetryData_t valve_data;
-    Valve_GetTelemetryData(&valve_data);
+    // balloon_state_t balloon_state = BALLOON_INFLATING;
+    // if (xSemaphoreTake(g_balloonMutex, pdMS_TO_TICKS(5)) == pdPASS)
+    // {
+    //   balloon_state = g_balloon.state;
+    //   xSemaphoreGive(g_balloonMutex);
+    // }
+    // Telemetry_SetBalloon((int)balloon_state);   
+    // float depth_est = 0.0f;
+    // float velocity_est = 0.0f;
+    // if (xSemaphoreTake(g_depthEstMutex, pdMS_TO_TICKS(5)) == pdPASS)
+    // {
+    //   depth_est = DepthEst_GetDepth(&g_depth_est);
+    //   velocity_est = DepthEst_GetVelocity(&g_depth_est);
+    //   xSemaphoreGive(g_depthEstMutex);
+    // }
+    // uint32_t now_ms = HAL_GetTick();
+    // mission_status_t mission_snapshot = {0};
+    // mission_status_t *mission_locked = Mission_LockStatus(pdMS_TO_TICKS(5));
+    // if (mission_locked != NULL)
+    // {
+    //   mission_snapshot = *mission_locked;
+    //   Mission_UnlockStatus();
+    // }
+    // Telemetry_SetMissionState((int)mission_snapshot.state);
+    // Telemetry_SetDepth(depth_est, velocity_est, mission_snapshot.target_depth_m);
 
-    Telemetry_SetPressures(valve_data.p_bag, valve_data.p_water, 
-                           valve_data.dPdt, valve_data.duty);
+    // // 原子读取所有气阀遥测数据（一次锁内完成，确保数据来自同一周期）
+    // ValveTelemetryData_t valve_data;
+    // Valve_GetTelemetryData(&valve_data);
+
+    // Telemetry_SetPressures(valve_data.p_bag, valve_data.p_water, 
+    //                        valve_data.dPdt, valve_data.duty);
     
-    // 读取控制数据（互斥量保护）
-    float vref_pub = 0.0f;
-    int16_t pwm_pub = CTRL_PWM_NEUTRAL;
-    if (xSemaphoreTake(g_depthCtrlMutex, pdMS_TO_TICKS(5)) == pdPASS)
-    {
-      vref_pub = (mission_snapshot.state == MISSION_APPROACH || 
-                  mission_snapshot.state == MISSION_PREP_HOLD || 
-                  mission_snapshot.state == MISSION_DEPTH_HOLD)
-                    ? DepthCtrl_GetVref(&g_depth_ctrl) : 0.0f;
-      pwm_pub = mission_snapshot.motor_active ? DepthCtrl_GetPwm(&g_depth_ctrl) : CTRL_PWM_NEUTRAL;
-      xSemaphoreGive(g_depthCtrlMutex);
-    }
-    Telemetry_SetControl(vref_pub, pwm_pub);
-    // 发布遥测数据（内部使用互斥量保护 + console_printf）
-    Telemetry_Publish(now_ms);
+    // // 读取控制数据（互斥量保护）
+    // float vref_pub = 0.0f;
+    // int16_t pwm_pub = CTRL_PWM_NEUTRAL;
+    // if (xSemaphoreTake(g_depthCtrlMutex, pdMS_TO_TICKS(5)) == pdPASS)
+    // {
+    //   vref_pub = (mission_snapshot.state == MISSION_APPROACH || 
+    //               mission_snapshot.state == MISSION_PREP_HOLD || 
+    //               mission_snapshot.state == MISSION_DEPTH_HOLD)
+    //                 ? DepthCtrl_GetVref(&g_depth_ctrl) : 0.0f;
+    //   pwm_pub = mission_snapshot.motor_active ? DepthCtrl_GetPwm(&g_depth_ctrl) : CTRL_PWM_NEUTRAL;
+    //   xSemaphoreGive(g_depthCtrlMutex);
+    // }
+    // Telemetry_SetControl(vref_pub, pwm_pub);
+    // // 发布遥测数据（内部使用互斥量保护 + console_printf）
+    // Telemetry_Publish(now_ms);
     
     // 周期性延时（1秒）
     vTaskDelayUntil(&xLastWakeTime, xPeriod);
@@ -445,6 +461,12 @@ void ControlTasks_Init(void)
     configASSERT(g_imuRxQueue != NULL);
   }
 
+  /* 启动IMU串口DMA接收（双缓冲 + IDLE回调） */
+  if (IMU_UART_StartDmaReception() != HAL_OK)
+  {
+    configASSERT(0);
+  }
+
   if (g_imuTxQueue == NULL)
   {
     g_imuTxQueue = xQueueCreate(IMU_TX_QUEUE_LENGTH, sizeof(ImuTxFrame_t));
@@ -468,7 +490,7 @@ void ControlTasks_Init(void)
   configASSERT(status == pdPASS);
 
   // 创建IMU处理任务（中等优先级）
-  status = xTaskCreate(Task_ImuProcess, "imu_proc", 512, NULL, tskIDLE_PRIORITY + 3, NULL);
+  status = xTaskCreate(Task_ImuProcess, "imu_proc", 512, NULL, tskIDLE_PRIORITY + 4, NULL);
   configASSERT(status == pdPASS);
 
   // 创建IMU发送任务（中等优先级）

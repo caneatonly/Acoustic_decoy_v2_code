@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "dma.h"
 #include "i2c.h"
 #include "tim.h"
 #include "usart.h"
@@ -106,6 +107,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_TIM2_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
@@ -123,7 +125,6 @@ int main(void)
 
   // //打开串口中断接收，UART3空置，用于后续扩展与linux上位机通讯
   HAL_UART_Receive_IT(&huart1, &rx_byte_debug, 1); //Debug PA9,PA10
-  HAL_UART_Receive_IT(&huart2, &rx_byte, 1);// IMU PA2,PA3
   // // HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);// 空置串口3 PB10,PB11
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3); // 启动PWM输出 TIM3_CH3 PB0 power 
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // 启动PWM输出 TIM3_CH1 PA6 fairing release
