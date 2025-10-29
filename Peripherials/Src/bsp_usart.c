@@ -266,12 +266,19 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
             uint16_t start = imu_dma_consumed;
             uint16_t new_bytes = Size - imu_dma_consumed;
 
-            for (uint16_t i = 0U; i < new_bytes; ++i)
-            {
-                (void)xQueueSendFromISR(g_imuRxQueue, &rx_buf[start + i], &xHigherPriorityTaskWoken);
-            }
+            ImuRxBlock_t block = {
+                .data = &rx_buf[start],
+                .length = new_bytes
+            };
 
-            imu_dma_consumed = Size;
+            if (xQueueSendFromISR(g_imuRxQueue, &block, &xHigherPriorityTaskWoken) == pdPASS)
+            {
+                imu_dma_consumed = Size;
+            }
+            else
+            {
+                uart2_error_count++;
+            }
         }
 
         HAL_UART_RxEventTypeTypeDef event = HAL_UARTEx_GetRxEventType(huart);

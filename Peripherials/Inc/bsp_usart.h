@@ -17,6 +17,11 @@ extern uint8_t uart1_rx_buffer[UART1_RX_BUFFER_SIZE];
 extern volatile uint8_t uart1_rx_index;
 extern volatile uint8_t uart1_data_ready;    // 数据准备标志
 
+typedef struct
+{
+	uint8_t *data;
+	uint16_t length;
+} ImuRxBlock_t;
 
 
 

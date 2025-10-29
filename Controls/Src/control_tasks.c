@@ -36,6 +36,22 @@ SemaphoreHandle_t g_depthCtrlMutex = NULL;
 SemaphoreHandle_t g_balloonMutex = NULL;
 SemaphoreHandle_t g_balloonStartSem = NULL;
 
+static void IMU_ProcessBlock(const ImuRxBlock_t *block)
+{
+  if (block == NULL || block->data == NULL || block->length == 0U)
+  {
+    return;
+  }
+
+  uint8_t *data = block->data;
+  uint16_t length = block->length;
+
+  for (uint16_t i = 0U; i < length; ++i)
+  {
+    Cmd_GetPkt(data[i]);
+  }
+}
+
 void Task_Led(void *argument)
 {
   (void)argument;
@@ -49,17 +65,16 @@ void Task_Led(void *argument)
 void Task_ImuProcess(void *argument)
 {
   (void)argument;
-  uint8_t byte = 0U;
+  ImuRxBlock_t block = {0};
 
   for (;;)
   {
-    if (xQueueReceive(g_imuRxQueue, &byte, portMAX_DELAY) == pdPASS)
+    if (xQueueReceive(g_imuRxQueue, &block, portMAX_DELAY) == pdPASS)
     {
-      Cmd_GetPkt(byte);
-
-      while (xQueueReceive(g_imuRxQueue, &byte, 0) == pdPASS)
+      IMU_ProcessBlock(&block);
+      while (xQueueReceive(g_imuRxQueue, &block, 0) == pdPASS)
       {
-        Cmd_GetPkt(byte);
+        IMU_ProcessBlock(&block);
       }
     }
   }
@@ -457,7 +472,7 @@ void ControlTasks_Init(void)
 
   if (g_imuRxQueue == NULL)
   {
-    g_imuRxQueue = xQueueCreate(IMU_RX_QUEUE_LENGTH, sizeof(uint8_t));
+    g_imuRxQueue = xQueueCreate(IMU_RX_QUEUE_LENGTH, sizeof(ImuRxBlock_t));
     configASSERT(g_imuRxQueue != NULL);
   }
 
