@@ -21,7 +21,6 @@ typedef struct {
     uint16_t current_pwm;   // 当前PWM占空比或频率值
     uint16_t target_pwm;    // 目标PWM值
     bool motor_enabled;     // 电机启用状态
-    uint32_t last_update;   // 上次更新的时间戳
 } Motor_Control_t;
 static Motor_Control_t g_motor_control = {0};
 
@@ -49,7 +48,6 @@ void SensorSystem_Init(void)
     g_motor_control.current_pwm = 1500;  // 中性值
     g_motor_control.target_pwm = 1500;
     g_motor_control.motor_enabled = false;
-    g_motor_control.last_update = HAL_GetTick();
 }
 
 // 数据访问函数 (线程安全版本 - Thread-Safe)
