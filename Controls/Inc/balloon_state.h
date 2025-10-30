@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include "FreeRTOS.h"
 #ifdef __cplusplus
 extern "C" { 
 #endif
@@ -14,11 +15,11 @@ typedef enum { BALLOON_INFLATING=0,
 typedef struct {
     balloon_state_t state;
     uint8_t stable_windows;
-    uint32_t last_transition_ms;
+    TickType_t last_transition_tick;
 } balloon_status_t;
 
 void Balloon_Init(balloon_status_t *b);
-void Balloon_Update(balloon_status_t *b, float duty, float dP_dt, uint32_t now_ms);
+void Balloon_Update(balloon_status_t *b, float duty, float dP_dt, TickType_t now_tick);
 
 
 #ifdef __cplusplus

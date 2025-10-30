@@ -2,6 +2,7 @@
 #define DEPTH_ESTIMATOR_H
 #include <stdint.h>
 #include <stdbool.h>
+#include "FreeRTOS.h"
 
 
 typedef struct {
@@ -12,12 +13,12 @@ typedef struct {
     float beta;         // 速度低通滤波系数
     float z_prev;       // 上一个滤波后深度，用于速度估算
     bool vel_initialized; // 速度滤波初始化标记
-    uint32_t last_update_ms;
+    TickType_t last_update_tick;
     bool valid;
 } depth_estimator_t;
 
 void DepthEst_Init(depth_estimator_t *est, float alpha, float beta);
-void DepthEst_Update(depth_estimator_t *est, float z_meas, uint32_t now_ms);
+void DepthEst_Update(depth_estimator_t *est, float z_meas, TickType_t now_tick);
 float DepthEst_GetDepth(const depth_estimator_t *est);
 float DepthEst_GetVelocity(const depth_estimator_t *est);
 bool DepthEst_IsValid(const depth_estimator_t *est);

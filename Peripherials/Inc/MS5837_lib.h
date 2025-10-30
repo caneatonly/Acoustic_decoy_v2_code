@@ -4,6 +4,7 @@
 #define INC_MS5837_LIB_H_
 
 #include "main.h"
+#include "FreeRTOS.h"
 
 /******************************************************************************
  * Defines
@@ -39,8 +40,8 @@ typedef struct
 {
 	uint8_t 		current_command;
 	uint16_t 		prom_coefficients[8];
-	uint16_t		delay_ms;
-	uint32_t 		conversion_start_time;
+	TickType_t 		conversion_timeout_ticks;
+	TickType_t 		conversion_start_tick;
 
 	int32_t 		pressure_raw;
 	int32_t 		temperature_raw;

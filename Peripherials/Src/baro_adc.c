@@ -1,4 +1,5 @@
 #include "baro_adc.h"
+#include "task.h"
 
 // 内部参数与状态
 #define BARO_ADC_BUF_SIZE 8
@@ -77,7 +78,7 @@ static void baroadc_update_from_raw(uint16_t raw)
     g_baro_data.raw = raw;
     g_baro_data.voltage_v = voltage;
     g_baro_data.pressure_bag = p_cal;
-    g_baro_data.timestamp = HAL_GetTick();
+    g_baro_data.timestamp = xTaskGetTickCountFromISR();
     g_baro_data.data_valid = valid;
 }
 

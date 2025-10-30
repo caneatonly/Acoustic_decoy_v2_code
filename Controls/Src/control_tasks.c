@@ -149,7 +149,7 @@ void Task_DepthEstimator(void *argument)
   
   for (;;)
   {
-    uint32_t now_ms = HAL_GetTick();
+    TickType_t now_tick = xTaskGetTickCount();
     
     // 读取 MS5837 最新深度数据
     const MS5837_Data_t *ms = MS5837_data_get();
@@ -158,7 +158,7 @@ void Task_DepthEstimator(void *argument)
       // 使用互斥量保护深度估计器更新
       if (xSemaphoreTake(g_depthEstMutex, pdMS_TO_TICKS(5)) == pdPASS)
       {
-        DepthEst_Update(&g_depth_est, ms->depth, now_ms);
+        DepthEst_Update(&g_depth_est, ms->depth, now_tick);
         xSemaphoreGive(g_depthEstMutex);
       }
     }
@@ -197,7 +197,7 @@ void Task_BalloonStateMachine(void *argument)
   
   for (;;)
   {
-    uint32_t now_ms = HAL_GetTick();
+    TickType_t now_tick = xTaskGetTickCount();
     
     // 1. 原子读取气阀控制参数（确保 duty 和 dPdt 来自同一周期）
     ValveTelemetryData_t valve_data;
@@ -206,7 +206,7 @@ void Task_BalloonStateMachine(void *argument)
     // 2. 使用互斥量保护气囊状态机更新
     if (xSemaphoreTake(g_balloonMutex, pdMS_TO_TICKS(5)) == pdPASS)
     {
-      Balloon_Update(&g_balloon, valve_data.duty, valve_data.dPdt, now_ms);
+      Balloon_Update(&g_balloon, valve_data.duty, valve_data.dPdt, now_tick);
       xSemaphoreGive(g_balloonMutex);
     }
     
@@ -245,8 +245,10 @@ void Task_Telemetry(void *argument)
         console_printf("  IMU Valid: %s\r\n", IMU_GetData()->data_valid ? "Yes" : "No");
         console_printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
         console_printf("  BARO(ADC) Valid: %s\r\n", baro->data_valid ? "Yes" : "No");
-        console_printf("timestamp: IMU=%u MS5837=%u BARO=%u\r\n",
-            imu->timestamp, ms5837->timestamp, baro->timestamp);
+    console_printf("timestamp: IMU=%lu MS5837=%lu BARO=%lu\r\n",
+      (unsigned long)imu->timestamp,
+      (unsigned long)ms5837->timestamp,
+      (unsigned long)baro->timestamp);
         console_printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm P=%.2fkPa | BARO: %.2fkPa (%.3fV, raw=%u)\r\n", 
             imu->angleX, imu->angleY, imu->angleZ,
             imu->accelX, imu->accelY, imu->accelZ,
@@ -269,7 +271,7 @@ void Task_Telemetry(void *argument)
     //   velocity_est = DepthEst_GetVelocity(&g_depth_est);
     //   xSemaphoreGive(g_depthEstMutex);
     // }
-    // uint32_t now_ms = HAL_GetTick();
+    // TickType_t now_tick = xTaskGetTickCount();
     // mission_status_t mission_snapshot = {0};
     // mission_status_t *mission_locked = Mission_LockStatus(pdMS_TO_TICKS(5));
     // if (mission_locked != NULL)
@@ -301,7 +303,7 @@ void Task_Telemetry(void *argument)
     // }
     // Telemetry_SetControl(vref_pub, pwm_pub);
     // // 发布遥测数据（内部使用互斥量保护 + console_printf）
-    // Telemetry_Publish(now_ms);
+    // Telemetry_Publish(now_tick);
     
     // 周期性延时（1秒）
     vTaskDelayUntil(&xLastWakeTime, xPeriod);
@@ -327,7 +329,7 @@ void Task_MissionManager(void *argument)
   
   for (;;)
   {
-    uint32_t now_ms = HAL_GetTick();
+    TickType_t now_tick = xTaskGetTickCount();
     
     // 1. 获取当前深度和速度估计
     float depth_est = 0.0f;
@@ -348,7 +350,7 @@ void Task_MissionManager(void *argument)
     }
     
     // 3. Mission Manager 统一管理阶段切换
-    Mission_Update(now_ms, depth_est, velocity_est, balloon_state);
+    Mission_Update(now_tick, depth_est, velocity_est, balloon_state);
   
     // 周期性延时
     vTaskDelayUntil(&xLastWakeTime, xPeriod);
@@ -374,7 +376,7 @@ void Task_MissionExecutor(void *argument)
   
   for (;;)
   {
-    uint32_t now_ms = HAL_GetTick();
+    TickType_t now_tick = xTaskGetTickCount();
     
     // 1. 获取当前深度和速度估计（互斥量保护）
     float depth_est = 0.0f;
@@ -392,7 +394,7 @@ void Task_MissionExecutor(void *argument)
     {
       if (xSemaphoreTake(g_depthCtrlMutex, pdMS_TO_TICKS(5)) == pdPASS)
       {
-        Mission_Execute(now_ms, depth_est, velocity_est, &g_depth_ctrl, mstat);
+        Mission_Execute(now_tick, depth_est, velocity_est, &g_depth_ctrl, mstat);
         xSemaphoreGive(g_depthCtrlMutex);
       }
       Mission_UnlockStatus();

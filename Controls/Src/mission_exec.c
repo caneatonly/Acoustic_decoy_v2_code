@@ -5,7 +5,7 @@
 #include "control_config.h"
 #include "control_tasks.h"
 
-void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth_ctrl_t* ctrl, mission_status_t* s)
+void Mission_Execute(TickType_t now_tick, float depth_est, float velocity_est, depth_ctrl_t* ctrl, mission_status_t* s)
 {
     if (!s || !ctrl) return;
 
@@ -13,8 +13,8 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
 
     // 检测任务状态是否变化
     const bool state_changed = Mission_HasStateChanged();
-    static uint32_t recovery_heartbeat_next_ms = 0;
-    static uint32_t failsafe_heartbeat_next_ms = 0;
+    static TickType_t recovery_heartbeat_next_tick = 0;
+    static TickType_t failsafe_heartbeat_next_tick = 0;
 
     // Defaults per cycle
     s->valve_enable = false;
@@ -84,7 +84,7 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
             s->valve_enable = false;
             if (state_changed) {
                 Mission_AckStateChange();
-                recovery_heartbeat_next_ms = now_ms;
+                recovery_heartbeat_next_tick = now_tick;
                 DepthCtrl_ResetIntegrators(ctrl);
                 if (Valve_ControlAlgorithm_IsEnabled()) {
                     Valve_ControlAlgorithm_Enable(false);
@@ -94,10 +94,10 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
                 Actuators_12V_PowerOff();
             }
 
-            if (now_ms >= recovery_heartbeat_next_ms) {
+            if (now_tick >= recovery_heartbeat_next_tick) {
                 console_printf("Recovery complete: Surface reached, shutting down.\r\n");
                 Actuators_LedToggle();
-                recovery_heartbeat_next_ms = now_ms + 1000u;
+                recovery_heartbeat_next_tick = now_tick + pdMS_TO_TICKS(1000u);
             }
 
             Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL);
@@ -109,7 +109,7 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
             s->valve_enable = false;
             if (state_changed) {
                 Mission_AckStateChange();
-                failsafe_heartbeat_next_ms = now_ms;
+                failsafe_heartbeat_next_tick = now_tick;
                 DepthCtrl_ResetIntegrators(ctrl);
                 if (Valve_ControlAlgorithm_IsEnabled()) {
                     Valve_ControlAlgorithm_Enable(false);
@@ -119,10 +119,10 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
                 Actuators_12V_PowerOff();
             }
 
-            if (now_ms >= failsafe_heartbeat_next_ms) {
+            if (now_tick >= failsafe_heartbeat_next_tick) {
                 console_printf("Mission stopped: FAILSAFE active.\r\n");
                 Actuators_LedToggle();
-                failsafe_heartbeat_next_ms = now_ms + 1000u;
+                failsafe_heartbeat_next_tick = now_tick + pdMS_TO_TICKS(1000u);
             }
 
             Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL);
@@ -145,7 +145,7 @@ void Mission_Execute(uint32_t now_ms, float depth_est, float velocity_est, depth
         DepthCtrl_SetMode(ctrl, s->ctrl_mode);
         DepthCtrl_ForceVref(ctrl, s->force_vref, s->vref_cmd);
         // 深度控制器更新（核心实现）
-        DepthCtrl_Update(ctrl, depth_est, velocity_est, now_ms);
+    DepthCtrl_Update(ctrl, depth_est, velocity_est, now_tick);
         pwm = DepthCtrl_GetPwm(ctrl);
     }
     

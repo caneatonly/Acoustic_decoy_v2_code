@@ -21,7 +21,7 @@ typedef enum {
 typedef struct {
     mission_state_t state;       // 当前任务状态
     mission_state_t prev_state;  // 上一个任务状态
-    uint32_t state_enter_ms;     // 进入当前状态的时间戳
+    TickType_t state_enter_tick; // 进入当前状态的节拍时间戳
     float target_depth_m;        // 目标深度
     bool started;                // 任务是否已启动
     bool valve_enable;           // 充气控制是否使能
@@ -32,7 +32,7 @@ typedef struct {
 } mission_status_t;
 
 void Mission_Init(float target_depth_m);
-void Mission_Update(uint32_t now_ms, float depth_m, float depth_vel_mps, balloon_state_t balloon_state);
+void Mission_Update(TickType_t now_tick, float depth_m, float depth_vel_mps, balloon_state_t balloon_state);
 void Mission_RequestRecovery(void);
 void Mission_AbortFailsafe(const char *reason);
 mission_status_t* Mission_GetStatus(void);

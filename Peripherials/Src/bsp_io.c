@@ -10,6 +10,7 @@
 #include "control_tasks.h"
 #include "FreeRTOS.h"
 #include "semphr.h"
+#include "task.h"
 
 // 全局数据实例
 MS5837_Data_t g_ms5837_data = {0};
@@ -139,7 +140,7 @@ void IMU_UpdateAngle(float angleX, float angleY, float angleZ)
     g_imu_data.angleX = angleX;
     g_imu_data.angleY = angleY;
     g_imu_data.angleZ = angleZ;
-    g_imu_data.timestamp = HAL_GetTick();
+    g_imu_data.timestamp = xTaskGetTickCount();
     g_imu_data.data_valid = true;
 }
 
@@ -149,7 +150,7 @@ void IMU_UpdateAccel(float accelX, float accelY, float accelZ)
     g_imu_data.accelX = accelX;
     g_imu_data.accelY = accelY;
     g_imu_data.accelZ = accelZ;
-    g_imu_data.timestamp = HAL_GetTick();
+    g_imu_data.timestamp = xTaskGetTickCount();
     g_imu_data.data_valid = true;
 }
 

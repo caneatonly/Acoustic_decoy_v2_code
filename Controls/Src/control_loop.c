@@ -29,7 +29,7 @@ static depth_ctrl_t g_depth_ctrl = {0};
 static balloon_status_t g_balloon = {0};
 
 // 上次状态发布的时间戳，用于无阻塞发布消息
-static uint32_t g_last_publish = 0;
+static TickType_t g_last_publish = 0;
 
 /*  控制器初始化函数
     1.读取PID增益和限制参数
@@ -68,12 +68,12 @@ void ControlLoop_Init(void){
     4.气囊状态机更新
     5.状态数据更新与发布
 */
-void ControlLoop_RunIteration(uint32_t now_ms){
+void ControlLoop_RunIteration(TickType_t now_tick){
 
     // 深度估计器更新
     const MS5837_Data_t *ms = MS5837_data_get();
     if(ms && ms->data_valid){
-        DepthEst_Update(&g_depth_est, ms->depth, now_ms);
+    DepthEst_Update(&g_depth_est, ms->depth, now_tick);
     }
 
     // 获取当前深度和速度估计
@@ -82,21 +82,21 @@ void ControlLoop_RunIteration(uint32_t now_ms){
 
     // Mission Manager 统一管理阶段切换 
     // 更新任务状态
-    Mission_Update(now_ms, depth_est, velocity_est, g_balloon.state);
+    Mission_Update(now_tick, depth_est, velocity_est, g_balloon.state);
     
     // 获取当前任务状态
     mission_status_t *mstat = Mission_GetStatus();
     Telemetry_SetMissionState((int)mstat->state);
 
     // 根据任务状态执行动作
-    Mission_Execute(now_ms, depth_est, velocity_est, &g_depth_ctrl, mstat);
+    Mission_Execute(now_tick, depth_est, velocity_est, &g_depth_ctrl, mstat);
 
     float duty = Valve_GetDuty();
     float p_bag = Valve_GetPbag();
     float p_water = Valve_GetPwater();
     float dPdt = Valve_GetdPdt();
     // 气囊状态机更新
-    Balloon_Update(&g_balloon, duty, dPdt, now_ms);
+    Balloon_Update(&g_balloon, duty, dPdt, now_tick);
 
     // 状态数据更新与发布
     Telemetry_SetDepth(depth_est, velocity_est, mstat->target_depth_m);
@@ -107,8 +107,9 @@ void ControlLoop_RunIteration(uint32_t now_ms){
     Telemetry_SetControl(vref_pub, pwm_pub);
 
     Telemetry_SetPressures(p_bag, p_water, dPdt, duty);
-    if(now_ms - g_last_publish >= CTRL_STATUS_PUBLISH_MS){
-        Telemetry_Publish(now_ms);
-        g_last_publish = now_ms;
+    TickType_t elapsed_ticks = now_tick - g_last_publish;
+    if (elapsed_ticks >= pdMS_TO_TICKS(CTRL_STATUS_PUBLISH_MS)){
+        Telemetry_Publish(now_tick);
+        g_last_publish = now_tick;
     }
 }

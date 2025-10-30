@@ -1,5 +1,6 @@
 #include "telemetry.h"
 #include "console.h"
+#include "time_utils.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include "FreeRTOS.h"
@@ -85,7 +86,7 @@ void Telemetry_SetPressures(float p_bag, float p_water, float dPdt, float duty)
     }
 }
 
-void Telemetry_Publish(uint32_t now_ms)
+void Telemetry_Publish(TickType_t now_tick)
 {
     // 创建本地副本，减少互斥量持有时间
     float z, v, z_target, v_ref, p_bag, p_water, dPdt, duty;
@@ -114,6 +115,7 @@ void Telemetry_Publish(uint32_t now_ms)
     }
     
     // 使用线程安全的 console_printf 发布遥测数据
+    const uint32_t now_ms = TimeUtils_TicksToMs(now_tick);
     console_printf("Time: %lu \r\nTLM:\r\n z=%.2f,z_target=%.2f,v=%.3f,v_ref = %.3f\r\n"
                    "mission_state = %d balloon_state = %d \r\n"
                    "pwm = %d,p_bag = %.2f,p_water = %.2f,dPdt = %.2f,duty = %.2f\r\n",

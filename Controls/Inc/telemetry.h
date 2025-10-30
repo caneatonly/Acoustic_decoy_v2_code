@@ -9,7 +9,7 @@
 extern SemaphoreHandle_t g_telemetryMutex;
 
 void Telemetry_Init(void);
-void Telemetry_Publish(uint32_t now_ms);
+void Telemetry_Publish(TickType_t now_tick);
 
 // 快照数据结构体数据更新API 
 void Telemetry_SetDepth(float z, float v, float z_target);

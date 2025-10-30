@@ -2,6 +2,7 @@
 #define DEPTH_CASCADED_CTRL_H
 #include <stdint.h>
 #include <stdbool.h>
+#include "FreeRTOS.h"
 
 
 typedef enum { DEPTH_CTRL_MODE_APPROACH=0, 
@@ -50,7 +51,7 @@ void DepthCtrl_SetMode(depth_ctrl_t *ctrl, depth_ctrl_mode_t mode);
 void DepthCtrl_SetTarget(depth_ctrl_t *ctrl, float z_target);
 // 在某些阶段强制速度参考为固定值（例如0），enable=false恢复正常外环控制
 void DepthCtrl_ForceVref(depth_ctrl_t *ctrl, bool enable, float v_ref_fixed);
-void DepthCtrl_Update(depth_ctrl_t *ctrl, float z_meas, float v_meas, uint32_t now_ms);
+void DepthCtrl_Update(depth_ctrl_t *ctrl, float z_meas, float v_meas, TickType_t now_tick);
 int16_t DepthCtrl_GetPwm(const depth_ctrl_t *ctrl);
 float DepthCtrl_GetVref(const depth_ctrl_t *ctrl);
 // 清零深度/速度积分，进入特殊模式（如回收）或模式切换前调用，避免积分累积造成的突变

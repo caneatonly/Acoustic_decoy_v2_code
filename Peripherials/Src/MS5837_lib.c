@@ -30,7 +30,14 @@ void MS5837_SetFluidDensity( MS5837_t *sensor, float density )
 void MS5837_Init( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor, uint16_t delay_ms )
 {
 	//--- minimum time 40 ms
-	sensor -> delay_ms = delay_ms - 1; //--- Offset 1, since counter starts at 0
+	uint32_t base_delay_ms = (delay_ms > 0u) ? (delay_ms - 1u) : 0u;
+	uint32_t timeout_ms = base_delay_ms * 2u;
+	sensor -> conversion_timeout_ticks = pdMS_TO_TICKS(timeout_ms);
+	if (sensor -> conversion_timeout_ticks == 0)
+	{
+		sensor -> conversion_timeout_ticks = 1;
+	}
+	sensor -> conversion_start_tick = 0;
 
     uint8_t cmd = MS5837_RESET_CMD;
 
@@ -59,9 +66,9 @@ void MS5837_StartConversion( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor, uint8_t 
 	HAL_StatusTypeDef status;
 
     sensor -> current_command = command;
-    sensor -> conversion_start_time = HAL_GetTick();
+	sensor -> conversion_start_tick = xTaskGetTickCount();
 
-    status = HAL_I2C_Master_Transmit(I2Cx, MS5837_I2C_ADDR, &command, 1, MS5837_I2C_TIMEOUT_MS);
+	status = HAL_I2C_Master_Transmit(I2Cx, MS5837_I2C_ADDR, &command, 1, MS5837_I2C_TIMEOUT_MS);
     if (status != HAL_OK)
     {
         sensor -> state = START_CONVERT_D1;
@@ -231,7 +238,7 @@ bool MS5837_IsDepthCalibrated(void)
 
 void MS5837_Process( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor)
 {
-	uint16_t ADC_TIMEOUT = sensor -> delay_ms * 2;
+	const TickType_t adc_timeout_ticks = sensor -> conversion_timeout_ticks;
 
 	switch (sensor -> state)
 	{
@@ -252,9 +259,13 @@ void MS5837_Process( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor)
 			{
 				sensor -> state = START_CONVERT_D2;
 			}
-			else if(HAL_GetTick() - sensor -> conversion_start_time > ADC_TIMEOUT)
+			else
 			{
-				sensor -> state = START_CONVERT_D1;
+				TickType_t now = xTaskGetTickCount();
+				if ((now - sensor -> conversion_start_tick) > adc_timeout_ticks)
+				{
+					sensor -> state = START_CONVERT_D1;
+				}
 			}
 			break;
 
@@ -275,9 +286,13 @@ void MS5837_Process( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor)
 			{
 				sensor -> state = CALCULATE_D1_D2;
 			}
-			else if(HAL_GetTick() - sensor -> conversion_start_time > ADC_TIMEOUT)
+			else
 			{
-				sensor -> state = START_CONVERT_D1;
+				TickType_t now = xTaskGetTickCount();
+				if ((now - sensor -> conversion_start_tick) > adc_timeout_ticks)
+				{
+					sensor -> state = START_CONVERT_D1;
+				}
 			}
 			break;
 
@@ -287,6 +302,7 @@ void MS5837_Process( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor)
 			
 			// 计算水深
 			float calculated_depth = MS5837_CalculateDepth(sensor);
+			TickType_t now = xTaskGetTickCount();
 			
 			// 使用互斥量保护全局数据结构更新 (线程安全)
 			if (xSemaphoreTake(g_ms5837DataMutex, portMAX_DELAY) == pdTRUE)
@@ -294,7 +310,7 @@ void MS5837_Process( I2C_HandleTypeDef *I2Cx, MS5837_t *sensor)
 				g_ms5837_data.temperature = sensor->temperature_celsius;
 				g_ms5837_data.depth = calculated_depth;
 				g_ms5837_data.pressure_water = sensor->pressure_mbar * 0.1f; // 绝对压力,转换为kPa
-				g_ms5837_data.timestamp = HAL_GetTick();
+				g_ms5837_data.timestamp = now;
 				g_ms5837_data.data_valid = true;
 				
 				xSemaphoreGive(g_ms5837DataMutex);

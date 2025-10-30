@@ -2,13 +2,11 @@
 #include "valve_ctrl.h"
 #include "actuators.h"
 #include "sensors_data_get.h"
-#include "stm32f1xx_hal.h"
-#include "FreeRTOS.h"
-#include "semphr.h"
+#include "time_utils.h"
 
 #include <math.h>
 
-#define Twin_ms 1000    // 1s window
+static const uint32_t TWIN_WINDOW_MS = 1000u;    // 1s window
 
 // FreeRTOS 互斥量（定义）
 SemaphoreHandle_t g_valveCtrlMutex = NULL;
@@ -30,15 +28,19 @@ static float  beta_d = 0.30f;       // 0.2~0.4 for low-noise derivative
 static uint32_t  Tmin_on = 100;     // ms
 static uint32_t  Tmin_off = 100;    // ms
 
+static TickType_t g_window_ticks = 0;
+static TickType_t g_min_on_ticks = 0;
+static TickType_t g_min_off_ticks = 0;
+
 // Safety
 static float  guard_over_kpa = 30.0f;   // !!气囊压力永远不能大于 p_water + 30kPa
 
 // 状态变量
 static bool initialized = false;
 static bool enabled = false;      // 是否启用充气功能，由状态机赋值
-static uint32_t  last_update_ms = 0;
-static uint32_t  win_start_ms = 0;
-static uint32_t  locked_on_ms = 0;   // on-time locked at window start
+static TickType_t last_update_tick = 0;
+static TickType_t win_start_tick = 0;
+static TickType_t locked_on_ticks = 0;   // on-time locked at window start
 
 static float  P_bag_filt = 0.0f;
 static float  P_water_filt = 0.0f;
@@ -48,13 +50,44 @@ static float  P_bag_prev = 0.0f;
 // Local non-blocking valve pulse job (moved from peripherals layer)
 typedef struct {
     uint8_t active;
-    uint32_t t_start_ms;
-    uint32_t duration_ms;
+    TickType_t t_start_ticks;
+    TickType_t duration_ticks;
 } ValvePulseJob_t;
 static ValvePulseJob_t g_valve_job = {0};
 
 // Clamp helper
 static inline float clampf(float x, float a, float b) { return (x < a) ? a : (x > b) ? b : x; }
+
+static TickType_t valve_ms_to_ticks(uint32_t ms)
+{
+    TickType_t ticks = TimeUtils_MsToTicks(ms);
+    if (ms > 0u && ticks == 0) {
+        ticks = 1;
+    }
+    return ticks;
+}
+
+static void valve_refresh_timing_ticks(void)
+{
+    g_window_ticks = valve_ms_to_ticks(TWIN_WINDOW_MS);
+    g_min_on_ticks = valve_ms_to_ticks(Tmin_on);
+    g_min_off_ticks = valve_ms_to_ticks(Tmin_off);
+}
+
+static void valve_open_for_ticks(TickType_t ticks)
+{
+    if (ticks == 0) {
+        return;
+    }
+
+    TickType_t now = TimeUtils_NowTicks();
+    if (!g_valve_job.active) {
+        Actuators_ValveOpen();
+        g_valve_job.active = 1;
+        g_valve_job.t_start_ticks = now;
+        g_valve_job.duration_ticks = ticks;
+    }
+}
 
 void Valve_ControlAlgorithm_Init(void)
 {
@@ -65,10 +98,12 @@ void Valve_ControlAlgorithm_Init(void)
         configASSERT(g_valveCtrlMutex != NULL);
     }
 
-    uint32_t now = HAL_GetTick();
-    last_update_ms = now;
-    win_start_ms = now;
-    locked_on_ms = 0;
+    valve_refresh_timing_ticks();
+
+    TickType_t now = TimeUtils_NowTicks();
+    last_update_tick = now;
+    win_start_tick = now;
+    locked_on_ticks = 0;
 
     // Seed filters from current readings if available
     const BaroADC_Data_t* baro = Ballon_pressure_get();
@@ -86,6 +121,7 @@ void Valve_ControlAlgorithm_Init(void)
 
     // Ensure valve job is idle
     g_valve_job.active = 0;
+    g_valve_job.duration_ticks = 0;
     Actuators_ValveClose();
 }
 
@@ -113,10 +149,16 @@ void Valve_ControlAlgorithm_Update(void)
         initialized = true;
     }
 
-    uint32_t now = HAL_GetTick();
-    float dt = (now -  last_update_ms) * 0.001f; // seconds
-    if (dt <= 0.0f || dt > 0.5f) dt = 0.1f;       // guard dt
-    last_update_ms = now;
+    TickType_t now = TimeUtils_NowTicks();
+    float dt = 0.1f;
+    if (last_update_tick != 0) {
+        TickType_t elapsed_ticks = now - last_update_tick;
+        float candidate = TimeUtils_TicksToSeconds(elapsed_ticks);
+        if (candidate > 0.0f && candidate <= 0.5f) {
+            dt = candidate;
+        }
+    }
+    last_update_tick = now;
 
     // Read sensors
     const BaroADC_Data_t* baro = Ballon_pressure_get();
@@ -159,29 +201,37 @@ void Valve_ControlAlgorithm_Update(void)
     }
 
     // Window scheduler: lock on-time at beginning of each 1s window
-    uint32_t win_elapsed = now -  win_start_ms;
-    if (win_elapsed >=  Twin_ms) {
-        // Start a new window
-         win_start_ms = now;
+    if (g_window_ticks == 0) {
+        valve_refresh_timing_ticks();
+    }
 
-        // Compute on-time for this window (respect min on/off)
-        // Only apply Tmin_on when duty > 0, otherwise keep valve closed for the full window.
-        uint32_t on_ms = 0;
-        if (duty > 0.0f) {
-            on_ms = (uint32_t)(duty * (float)Twin_ms + 0.5f);
-            if (on_ms < Tmin_on) {
-                on_ms = Tmin_on;
+    TickType_t win_elapsed = now - win_start_tick;
+    if (win_elapsed >= g_window_ticks) {
+        // Start a new window
+        win_start_tick = now;
+
+        TickType_t on_ticks = 0;
+        if (duty > 0.0f && g_window_ticks > 0) {
+            float scaled = duty * (float)g_window_ticks;
+            if (scaled < 0.0f) {
+                scaled = 0.0f;
             }
-            if (on_ms > Twin_ms - Tmin_off) {
-                on_ms = Twin_ms - Tmin_off;
+            on_ticks = (TickType_t)(scaled + 0.5f);
+
+            if (on_ticks < g_min_on_ticks) {
+                on_ticks = g_min_on_ticks;
+            }
+
+            TickType_t max_on_ticks = (g_window_ticks > g_min_off_ticks) ? (g_window_ticks - g_min_off_ticks) : 0;
+            if (on_ticks > max_on_ticks) {
+                on_ticks = max_on_ticks;
             }
         }
 
-         locked_on_ms = on_ms;
+        locked_on_ticks = on_ticks;
 
-        // Fire one pulse for this window (non-blocking)
-        if ( locked_on_ms > 0) {
-            valve_open_for( locked_on_ms);
+        if (locked_on_ticks > 0) {
+            valve_open_for_ticks(locked_on_ticks);
         } else {
             Actuators_ValveClose();
         }
@@ -201,6 +251,8 @@ void Valve_ControlAlgorithm_Enable(bool en)
         // Immediately ensure valve is closed, cancel any pending job, and mark uninitialized
         Actuators_ValveClose();
         g_valve_job.active = 0;
+        g_valve_job.duration_ticks = 0;
+        locked_on_ticks = 0;
         initialized = false;
     } else {
         // On enable, re-initialize to capture current sensor baseline
@@ -229,19 +281,20 @@ void Valve_ControlAlgorithm_SetMargin(float dp_margin_kpa)
 void Valve_ControlAlgorithm_SetWindow(uint32_t min_on_ms, uint32_t min_off_ms)
 {
     // 简单约束：不允许最小开+最小关超过窗口
-    if (min_on_ms > Twin_ms) min_on_ms = Twin_ms;
-    if (min_off_ms > Twin_ms) min_off_ms = Twin_ms;
-    if (min_on_ms + min_off_ms > Twin_ms) {
+    if (min_on_ms > TWIN_WINDOW_MS) min_on_ms = TWIN_WINDOW_MS;
+    if (min_off_ms > TWIN_WINDOW_MS) min_off_ms = TWIN_WINDOW_MS;
+    if (min_on_ms + min_off_ms > TWIN_WINDOW_MS) {
         // 优先保证最小关
-        if (min_off_ms < Twin_ms) {
-            min_on_ms = Twin_ms - min_off_ms;
+        if (min_off_ms < TWIN_WINDOW_MS) {
+            min_on_ms = TWIN_WINDOW_MS - min_off_ms;
         } else {
             min_on_ms = 0;
-            min_off_ms = Twin_ms;
+            min_off_ms = TWIN_WINDOW_MS;
         }
     }
     Tmin_on = min_on_ms;
     Tmin_off = min_off_ms;
+    valve_refresh_timing_ticks();
 }
 
 void Valve_ControlAlgorithm_SetEps(float eps_kpa)
@@ -262,7 +315,7 @@ void Valve_ControlAlgorithm_GetParams(ValveControlParams_t* out)
     out->eps_kpa = eps;
     out->dp_margin_kpa = dp_margin;
     out->guard_over_kpa = guard_over_kpa;
-    out->window_ms = Twin_ms;
+    out->window_ms = TWIN_WINDOW_MS;
     out->Tmin_on_ms = Tmin_on;
     out->Tmin_off_ms = Tmin_off;
 }
@@ -337,22 +390,21 @@ void Valve_GetTelemetryData(ValveTelemetryData_t* out)
 // Non-blocking pulse API ownership moved here
 void valve_open_for(uint32_t ms)
 {
-    if (ms == 0) return;
-    uint32_t now = HAL_GetTick();
-    if (!g_valve_job.active) {
-    Actuators_ValveOpen();
-        g_valve_job.active = 1;
-        g_valve_job.t_start_ms = now;
-        g_valve_job.duration_ms = ms;
+    if (ms == 0u) {
+        return;
     }
+
+    TickType_t duration_ticks = valve_ms_to_ticks(ms);
+    valve_open_for_ticks(duration_ticks);
 }
 
 void valve_pulse_task(void)
 {
     if (!g_valve_job.active) return;
-    uint32_t now = HAL_GetTick();
-    if ((uint32_t)(now - g_valve_job.t_start_ms) >= g_valve_job.duration_ms) {
-    Actuators_ValveClose();
+    TickType_t now = TimeUtils_NowTicks();
+    if ((TickType_t)(now - g_valve_job.t_start_ticks) >= g_valve_job.duration_ticks) {
+        Actuators_ValveClose();
         g_valve_job.active = 0;
+        g_valve_job.duration_ticks = 0;
     }
 }

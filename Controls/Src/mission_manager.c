@@ -6,7 +6,6 @@
 #include <stdbool.h>
 #include <math.h>
 #include "balloon_state.h"
-#include "stm32f1xx_hal.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
@@ -25,7 +24,7 @@ static void MissionEnsureMutex(void)
     }
 }
 // 在 DEPTH_HOLD 阶段用于统计“持续处于目标附近带内”的开始时间戳（0 表示当前不在带内计时）
-static uint32_t g_hold_inband_start_ms = 0;
+static TickType_t g_hold_inband_start_tick = 0;
 
 mission_status_t* Mission_LockStatus(TickType_t timeout_ticks)
 {
@@ -43,6 +42,11 @@ void Mission_UnlockStatus(void)
     (void)xSemaphoreGiveRecursive(g_statusMutex);
 }
 
+mission_status_t* Mission_GetStatus(void)
+{
+    return &g_status;
+}
+
 void Mission_Init(float target_depth_m){
     MissionEnsureMutex();
     mission_status_t *status = Mission_LockStatus(portMAX_DELAY);
@@ -50,13 +54,13 @@ void Mission_Init(float target_depth_m){
     status->state = MISSION_INIT;
     status->prev_state = MISSION_INIT;
     status->target_depth_m = target_depth_m; 
-    status->state_enter_ms = 0; 
+    status->state_enter_tick = 0; 
     status->started = true; 
     Mission_UnlockStatus();
 }
 
 // 任务模式切换逻辑
-void Mission_Update(uint32_t now_ms, float depth_m, float vel_mps, balloon_state_t balloon_state){
+void Mission_Update(TickType_t now_tick, float depth_m, float vel_mps, balloon_state_t balloon_state){
 
     mission_status_t *status = Mission_LockStatus(portMAX_DELAY);
     configASSERT(status != NULL);
@@ -71,19 +75,19 @@ void Mission_Update(uint32_t now_ms, float depth_m, float vel_mps, balloon_state
         case MISSION_INIT:
             status->prev_state = status->state;
             status->state = MISSION_WATER_DETECT;
-            status->state_enter_ms = now_ms;
+            status->state_enter_tick = now_tick;
             break;
         case MISSION_WATER_DETECT: {
             // 条件: 达到深度阈值 -> 进入 APPROACH
             if(depth_m > WATER_DETECT_DEPTH_THRESHOLD_M){
                 status->prev_state = status->state;
                 status->state = MISSION_APPROACH;
-                status->state_enter_ms = now_ms;
-            } else if((uint32_t)(now_ms - status->state_enter_ms) > WATER_DETECT_TIMEOUT_MS){
+                status->state_enter_tick = now_tick;
+            } else if((TickType_t)(now_tick - status->state_enter_tick) > pdMS_TO_TICKS(WATER_DETECT_TIMEOUT_MS)){
                 // 超时进入 FAILSAFE
                 status->prev_state = status->state;
                 status->state = MISSION_FAILSAFE;
-                status->state_enter_ms = now_ms;
+                status->state_enter_tick = now_tick;
             }
 
             break; }
@@ -93,7 +97,7 @@ void Mission_Update(uint32_t now_ms, float depth_m, float vel_mps, balloon_state
             if (fabsf(dz) <= CTRL_PREP_BAND_ENTER_M){
                 status->prev_state = status->state;
                 status->state = MISSION_PREP_HOLD;
-                status->state_enter_ms = now_ms;
+                status->state_enter_tick = now_tick;
             }
             break; }
         case MISSION_PREP_HOLD: {
@@ -102,14 +106,14 @@ void Mission_Update(uint32_t now_ms, float depth_m, float vel_mps, balloon_state
             if (fabsf(dz) > CTRL_PREP_BAND_EXIT_M){
                 status->prev_state = status->state;
                 status->state = MISSION_APPROACH;
-                status->state_enter_ms = now_ms;
+                status->state_enter_tick = now_tick;
                 break;
             }
             // 气囊完全稳定后 -> 进入保深
             if (balloon_state == BALLOON_STABLE && fabsf(vel_mps) < CTRL_V_NEAR_ZERO_MPS) {
                 status->prev_state = status->state;
                 status->state = MISSION_DEPTH_HOLD;
-                status->state_enter_ms = now_ms;
+                status->state_enter_tick = now_tick;
             }
             break; }
         case MISSION_DEPTH_HOLD: {
@@ -118,30 +122,30 @@ void Mission_Update(uint32_t now_ms, float depth_m, float vel_mps, balloon_state
 
             // 1) 超出退出阈值：立即返回 APPROACH，并重置计时
             if (fabsf(dz) > CTRL_PREP_BAND_EXIT_M) {
-                g_hold_inband_start_ms = 0; // 离开带内，清零
+                g_hold_inband_start_tick = 0; // 离开带内，清零
                 status->prev_state = status->state;
                 status->state = MISSION_APPROACH;
-                status->state_enter_ms = now_ms;
+                status->state_enter_tick = now_tick;
                 break;
             }
 
             // 2) 在带内（使用进入阈值判定）时开始或累计计时；离开带内则清零计时
             if (fabsf(dz) <= CTRL_PREP_BAND_ENTER_M) {
-                if (g_hold_inband_start_ms == 0) {
-                    g_hold_inband_start_ms = now_ms; // 刚进入带内，开始计时
+                if (g_hold_inband_start_tick == 0) {
+                    g_hold_inband_start_tick = now_tick; // 刚进入带内，开始计时
                 }
             } else {
                 // 介于 ENTER 与 EXIT 之间，视为未满足“在目标附近”，清零连续计时
-                g_hold_inband_start_ms = 0;
+                g_hold_inband_start_tick = 0;
             }
 
             // 3) 若连续在带内的时间达到阈值，则进入 DWELL 监测阶段
-            if (g_hold_inband_start_ms != 0u &&
-                (uint32_t)(now_ms - g_hold_inband_start_ms) >= CTRL_HOLD_DWELL_TIME_MS) {
+            if (g_hold_inband_start_tick != 0u &&
+                (TickType_t)(now_tick - g_hold_inband_start_tick) >= pdMS_TO_TICKS(CTRL_HOLD_DWELL_TIME_MS)) {
                 status->prev_state = status->state;
                 status->state = MISSION_DWELL_MONITOR;
-                status->state_enter_ms = now_ms;
-                g_hold_inband_start_ms = 0; // 进入下阶段，复位该计时
+                status->state_enter_tick = now_tick;
+                g_hold_inband_start_tick = 0; // 进入下阶段，复位该计时
             }
             break; }
         case MISSION_DWELL_MONITOR: {
@@ -152,29 +156,29 @@ void Mission_Update(uint32_t now_ms, float depth_m, float vel_mps, balloon_state
                 // 误差过大（超出驻留带退出阈值），重新进入APPROACH以快速拉回
                 status->prev_state = status->state;
                 status->state = MISSION_APPROACH;
-                status->state_enter_ms = now_ms;
+                status->state_enter_tick = now_tick;
                 break;
             } else if (fabsf(dz) > CTRL_PREP_BAND_ENTER_M) {
                 // 误差介于进入与退出阈值之间，进入HOLD以小修正
                 status->prev_state = status->state;
                 status->state = MISSION_DEPTH_HOLD;
-                status->state_enter_ms = now_ms;
+                status->state_enter_tick = now_tick;
                 break;
             }
-            if ((uint32_t)(now_ms - status->state_enter_ms) >= CTRL_RECOVERY_DELAY_MS) {
+            if ((TickType_t)(now_tick - status->state_enter_tick) >= pdMS_TO_TICKS(CTRL_RECOVERY_DELAY_MS)) {
                 status->prev_state = status->state;
                 status->state = MISSION_RECOVERY_ASCEND;
-                status->state_enter_ms = now_ms;
+                status->state_enter_tick = now_tick;
             }
             break; }
         case MISSION_RECOVERY_ASCEND: {
             // 表面/浅水检测：到达浅水阈值 -> 自动停机
             // 加入最小驻留时间，确保进入RECOVERY后的首次执行能完成：valve禁用/power_on/积分清零等
-            if ((uint32_t)(now_ms - status->state_enter_ms) >= 200u) {
+            if ((TickType_t)(now_tick - status->state_enter_tick) >= pdMS_TO_TICKS(200u)) {
                 if (depth_m <= CTRL_SURFACE_DEPTH_TH_M){
                     status->prev_state = status->state;
                     status->state = MISSION_RECOVERY_SHUTDOWN;
-                    status->state_enter_ms = now_ms;
+                    status->state_enter_tick = now_tick;
                 }
             }
             break; }
@@ -198,7 +202,7 @@ void Mission_RequestRecovery(void){
     {
         status->prev_state = status->state; 
         status->state = MISSION_RECOVERY_ASCEND; 
-        status->state_enter_ms = HAL_GetTick();
+        status->state_enter_tick = xTaskGetTickCount();
         Mission_UnlockStatus();
     }
 }
@@ -211,7 +215,7 @@ void Mission_AbortFailsafe(const char *reason){
     {
         status->prev_state = status->state; 
         status->state = MISSION_FAILSAFE; 
-        status->state_enter_ms = HAL_GetTick();
+        status->state_enter_tick = xTaskGetTickCount();
         Mission_UnlockStatus();
     }
 }
