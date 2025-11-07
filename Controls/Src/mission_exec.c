@@ -99,7 +99,6 @@ void Mission_Execute(TickType_t now_tick, float depth_est, float velocity_est, d
                 Actuators_LedToggle();
                 recovery_heartbeat_next_tick = now_tick + pdMS_TO_TICKS(1000u);
             }
-
             Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL);
             Actuators_ValveClose();
             Actuators_12V_PowerOff();

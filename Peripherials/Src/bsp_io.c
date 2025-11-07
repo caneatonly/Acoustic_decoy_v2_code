@@ -16,13 +16,6 @@
 MS5837_Data_t g_ms5837_data = {0};
 IMU_Data_t g_imu_data = {0};
 
-// Motor control kept internal to this module
-typedef struct {
-    uint16_t current_pwm;   // 当前PWM占空比或频率值
-    uint16_t target_pwm;    // 目标PWM值
-    bool motor_enabled;     // 电机启用状态
-} Motor_Control_t;
-static Motor_Control_t g_motor_control = {0};
 
 // 初始化函数
 void SensorSystem_Init(void)
@@ -44,10 +37,6 @@ void SensorSystem_Init(void)
     g_imu_data.timestamp = 0;
     g_imu_data.data_valid = false;
     
-    // 初始化电机控制
-    g_motor_control.current_pwm = 1500;  // 中性值
-    g_motor_control.target_pwm = 1500;
-    g_motor_control.motor_enabled = false;
 }
 
 // 数据访问函数 (线程安全版本 - Thread-Safe)
@@ -96,17 +85,14 @@ void motorInit(void)
 void motor_test(void)
 {
     // 启动电机
-    g_motor_control.motor_enabled = true;
-    g_motor_control.target_pwm = 2000;  // 设置目标PWM值为2000
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, g_motor_control.target_pwm);
-    
-    // 延时1秒以观察电机状态
-    HAL_Delay(1000);
-    
-    // 停止电机
-    g_motor_control.motor_enabled = false;
-    g_motor_control.target_pwm = 1500;  // 设置目标PWM值为1500（中性位置）
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, g_motor_control.target_pwm);
+    int target_pwm = 2000;  // 设置目标PWM值为2000
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, target_pwm);
+
+    // 延时1秒以观察电机状态（FreeRTOS环境下使用vTaskDelay）
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
+    target_pwm = 1500;  // 设置目标PWM值为1500（中性位置）
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, target_pwm);
 }
 
 //电机转速设置函数
@@ -114,13 +100,8 @@ void SetMotorSpeed(uint16_t speed)
 {
     if (speed < 1000) speed = 1000;  // 限制最小值
     if (speed > 2000) speed = 2000;  // 限制最大值
-    if(speed != 1500){
-        g_motor_control.motor_enabled = true; // 启用电机
-    } else {
-        g_motor_control.motor_enabled = false; // 停止电机
-    }
-    g_motor_control.target_pwm = speed;
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, g_motor_control.target_pwm);
+    int target_pwm = speed;
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, target_pwm);
 }
 
 
@@ -170,7 +151,7 @@ void power_off(void) {
 // 整流罩控制函数
 void fairing_release(void){
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2000);
-    HAL_Delay(100); // 等待100ms以确保释放完成
+    vTaskDelay(pdMS_TO_TICKS(100)); // 等待100ms以确保释放完成（FreeRTOS环境下使用vTaskDelay）
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 1000);
 }
 

@@ -3,6 +3,7 @@
 #include "im948_CMD.h"
 #include "bsp_io.h"
 #include "control_tasks.h"
+#include "control_config.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -116,16 +117,29 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
     }
     else if (strcmp(cmd, "help") == 0 || strcmp(cmd, "?") == 0)
     {
-        console_printf("Commands:\r\n");
-        console_printf("  help|?                - show this help\r\n");
-        console_printf("  ver                   - firmware version\r\n");
-        console_printf("  status                - quick system status\r\n");
-        console_printf("  fairing               - release fairing\r\n");
-        console_printf("  valve_open|valve_close - control valve\r\n");
-        console_printf("  motortest             - motor test pulse\r\n");
-        console_printf("  power_on|power_off    - 12V power control\r\n");
+        console_printf("=== Acoustic Decoy v2 Control Commands ===\r\n");
+        console_printf("\r\n");
+        console_printf("System Control:\r\n");
+        console_printf("  ctrl on|off|?         - Enable/disable auto control\r\n");
+        console_printf("                          ON:  Mission FSM active (auto mode)\r\n");
+        console_printf("                          OFF: Manual control mode\r\n");
+        console_printf("                          ?:   Query current state\r\n");
+        console_printf("\r\n");
+        console_printf("Manual Actuators (requires 'ctrl off'):\r\n");
+        console_printf("  motortest             - Test motor (PWM 2000->1500, 1s pulse)\r\n");
+        console_printf("  valve_open            - Open inflation valve\r\n");
+        console_printf("  valve_close           - Close inflation valve\r\n");
+        console_printf("  fairing               - Release nose fairing (100ms pulse)\r\n");
+        console_printf("\r\n");
+        console_printf("System Info:\r\n");
+        console_printf("  status                - Show sensor status\r\n");
+        console_printf("  ver                   - Firmware version\r\n");
+        console_printf("\r\n");
+        console_printf("Power Control:\r\n");
+        console_printf("  power_on              - Enable 12V power\r\n");
+        console_printf("  power_off             - Disable 12V power\r\n");
         console_printf("  reset                 - System reset\r\n");
-        console_printf("  ctrl on|off|?         - enable/disable Control Logics, '?' shows state\r\n");
+        console_printf("\r\n");
     }
     else if (strcmp(cmd, "ver") == 0)
     {
@@ -197,10 +211,28 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
     else if (strncmp(cmd, "ctrl ", 5) == 0)
     {
         extern volatile uint8_t g_control_loop_enabled; // defined in main.c
-        if (strcmp(cmd+5, "on") == 0) { g_control_loop_enabled = 1; console_printf("ctrl: ON\r\n"); }
-        else if (strcmp(cmd+5, "off") == 0) { g_control_loop_enabled = 0; console_printf("ctrl: OFF\r\n"); }
-        else if (strcmp(cmd+5, "?") == 0) { console_printf("ctrl: %s\r\n", g_control_loop_enabled?"ON":"OFF"); }
-        else { console_printf("ERR: usage ctrl on|off|?\r\n"); }
+        if (strcmp(cmd+5, "on") == 0) { 
+            g_control_loop_enabled = 1; 
+            console_printf("ctrl: ON - Auto control resumed (Mission FSM active)\r\n"); 
+        }
+        else if (strcmp(cmd+5, "off") == 0) { 
+            g_control_loop_enabled = 0;
+            
+            // 安全清理：禁用控制循环时，设置电机为中性，关闭阀门
+            SetMotorSpeed(CTRL_PWM_NEUTRAL); // 1500 中性位置
+            valve_close();                   // 关闭充气阀
+            
+            console_printf("ctrl: OFF - Manual control mode\r\n");
+            console_printf("  Motor: PWM=%d (neutral)\r\n", CTRL_PWM_NEUTRAL);
+            console_printf("  Valve: CLOSED\r\n");
+            console_printf("  Now you can use manual commands: motortest, valve_open, valve_close, etc.\r\n");
+        }
+        else if (strcmp(cmd+5, "?") == 0) { 
+            console_printf("ctrl: %s\r\n", g_control_loop_enabled?"ON (Auto)":"OFF (Manual)"); 
+        }
+        else { 
+            console_printf("ERR: usage ctrl on|off|?\r\n"); 
+        }
     }
     else
     {

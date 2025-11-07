@@ -329,6 +329,14 @@ void Task_MissionManager(void *argument)
   
   for (;;)
   {
+    // 检查控制循环使能标志（ctrl on/off 命令控制）
+    extern volatile uint8_t g_control_loop_enabled;
+    if (!g_control_loop_enabled) {
+      // 控制循环禁用，跳过状态机更新，允许手动控制
+      vTaskDelayUntil(&xLastWakeTime, xPeriod);
+      continue;
+    }
+    
     TickType_t now_tick = xTaskGetTickCount();
     
     // 1. 获取当前深度和速度估计
@@ -376,6 +384,14 @@ void Task_MissionExecutor(void *argument)
   
   for (;;)
   {
+    // 检查控制循环使能标志（ctrl on/off 命令控制）
+    extern volatile uint8_t g_control_loop_enabled;
+    if (!g_control_loop_enabled) {
+      // 控制循环禁用，跳过控制输出，允许手动控制
+      vTaskDelayUntil(&xLastWakeTime, xPeriod);
+      continue;
+    }
+    
     TickType_t now_tick = xTaskGetTickCount();
     
     // 1. 获取当前深度和速度估计（互斥量保护）
