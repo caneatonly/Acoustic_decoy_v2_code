@@ -3,18 +3,15 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/**
- * @brief 获取当前 FreeRTOS 节拍计数（Tick count）。
- */
-static inline TickType_t TimeUtils_NowTicks(void)
-{
-    return xTaskGetTickCount();
-}
+TickType_t TimeUtils_NowTicks(void);
+TickType_t TimeUtils_NowTicksFromISR(void);
+bool TimeUtils_IsSchedulerStarted(void);
 
 /**
  * @brief 将节拍数转换为毫秒（毫秒时间戳）。

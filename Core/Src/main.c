@@ -120,8 +120,8 @@ int main(void)
 
   printf("Acoustic Decoy Initializing . . .\r\n");
   
-  // 初始化传感器与电机控制的运行期默认值
-  SensorSystem_Init();
+  // // 初始化传感器与电机控制的运行期默认值
+  // SensorSystem_Init();
 
   // //打开串口中断接收，UART3空置，用于后续扩展与linux上位机通讯
   HAL_UART_Receive_IT(&huart1, &rx_byte_debug, 1); //Debug PA9,PA10

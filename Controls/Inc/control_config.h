@@ -9,7 +9,7 @@ Email: zyshine3@sjtu.edu.cn
 */
 
 // Depth bands / thresholds
-#define CTRL_DEPTH_TARGET_M             (5.0f)     // 目标深度
+#define CTRL_DEPTH_TARGET_M             (2.0f)     // 目标深度
 #define CTRL_PREP_BAND_ENTER_M                (0.30f)    // 进入深度预备区阈值
 #define CTRL_PREP_BAND_EXIT_M                 (0.45f)    // 退出深度预备区阈值
 #define CTRL_V_NEAR_ZERO_MPS            (0.05f)   // 速度接近零阈值，用于判断是否进入HOLD
@@ -25,29 +25,29 @@ Email: zyshine3@sjtu.edu.cn
 
 // PID defaults (占位！！需要进行参数整定)
 // Approach模式下 串级PID增益
-#define PID_Z_KP_APP   (0.8f)
-#define PID_Z_KI_APP   (0.0f)
+#define PID_Z_KP_APP   (0.4f)
+#define PID_Z_KI_APP   (0.02f)
 #define PID_Z_KD_APP   (0.0f)
-#define PID_V_KP_APP   (0.6f)
-#define PID_V_KI_APP   (0.0f)
+#define PID_V_KP_APP   (-1000.0f)
+#define PID_V_KI_APP   (-150.0f)
 #define PID_V_KD_APP   (0.0f)
 // Hold模式下 串级PID增益
-#define PID_Z_KP_HOLD  (1.2f)
-#define PID_Z_KI_HOLD  (0.05f)
+#define PID_Z_KP_HOLD  (0.4f)
+#define PID_Z_KI_HOLD  (0.02f)
 #define PID_Z_KD_HOLD  (0.0f)
-#define PID_V_KP_HOLD  (0.8f)
-#define PID_V_KI_HOLD  (0.02f)
+#define PID_V_KP_HOLD  (-1000.0f)
+#define PID_V_KI_HOLD  (-150.0f)
 #define PID_V_KD_HOLD  (0.0f)
 
 // Ramps / limits
 #define CTRL_V_REF_MAX_APP    (0.25f)   // APPROACH 模式下最大参考速度
 #define CTRL_V_REF_MAX_HOLD   (0.05f)   // HOLD 模式下最大参考速度
-#define CTRL_V_REF_SLEW       (0.01f)   // m/s per control step (placeholder)
+#define CTRL_V_REF_SLEW       (0.02f)   // m/s per control step (faster ramp)
 #define CTRL_PWM_NEUTRAL      (1500)
 #define CTRL_PWM_MIN          (1000)
 #define CTRL_PWM_MAX          (2000)
-#define CTRL_PWM_SLEW_PER_TICK (25)     // per 10ms tick approx, ≈2500 counts/s
-#define CTRL_PWM_DIR_THRESH     (30)    // 中立换向阈值
+#define CTRL_PWM_SLEW_PER_TICK (50)     // per 10ms tick ≈5000 counts/s
+#define CTRL_PWM_DIR_THRESH     (15)    // 中立换向阈值
 
 // 深度估计器 EMA 参数
 #define ESTIMATOR_EMA_ALPHA_Z   (0.2f)  //深度估计 EMA系数

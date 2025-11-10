@@ -18,6 +18,8 @@
 #include "actuators.h"
 #include "valve_ctrl.h"
 #include "balloon_state.h"
+#include <math.h>
+#include <stddef.h>
 
 #define IMU_RX_QUEUE_LENGTH     256U
 #define IMU_TX_QUEUE_LENGTH     6U
@@ -35,6 +37,20 @@ SemaphoreHandle_t g_depthEstMutex = NULL;
 SemaphoreHandle_t g_depthCtrlMutex = NULL;
 SemaphoreHandle_t g_balloonMutex = NULL;
 SemaphoreHandle_t g_balloonStartSem = NULL;
+
+#define TLM_HISTORY_LENGTH 5U
+
+typedef struct {
+  TickType_t tick;
+  float depth_err;
+  float vel_err;
+  int16_t pwm;
+  float vref;
+} telemetry_history_sample_t;
+
+static telemetry_history_sample_t g_tlm_history[TLM_HISTORY_LENGTH] = {0};
+static size_t g_tlm_history_count = 0U;
+static size_t g_tlm_history_index = 0U;
 
 static void IMU_ProcessBlock(const ImuRxBlock_t *block)
 {
@@ -237,75 +253,189 @@ void Task_Telemetry(void *argument)
   
   for (;;)
   {    
+    TickType_t now_tick = xTaskGetTickCount();
+
     const IMU_Data_t* imu = IMU_GetData();
     const MS5837_Data_t* ms5837 = MS5837_GetData();
     const BaroADC_Data_t* baro = BaroADC_GetData();
-        // 状态查询命令
-        console_printf("System Status:\r\n");
-        console_printf("  IMU Valid: %s\r\n", IMU_GetData()->data_valid ? "Yes" : "No");
-        console_printf("  MS5837 Valid: %s\r\n", MS5837_GetData()->data_valid ? "Yes" : "No");
-        console_printf("  BARO(ADC) Valid: %s\r\n", baro->data_valid ? "Yes" : "No");
-    console_printf("timestamp: IMU=%lu MS5837=%lu BARO=%lu\r\n",
-      (unsigned long)imu->timestamp,
-      (unsigned long)ms5837->timestamp,
-      (unsigned long)baro->timestamp);
-        console_printf("Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2f D=%.2fm P=%.2fkPa | BARO: %.2fkPa (%.3fV, raw=%u)\r\n", 
-            imu->angleX, imu->angleY, imu->angleZ,
-            imu->accelX, imu->accelY, imu->accelZ,
-            ms5837->temperature, ms5837->depth, ms5837->pressure_water, 
-            baro->pressure_bag, baro->voltage_v, baro->raw);
 
+    float depth_est = 0.0f;
+    float velocity_est = 0.0f;
+    if (xSemaphoreTake(g_depthEstMutex, pdMS_TO_TICKS(5)) == pdPASS)
+    {
+      depth_est = DepthEst_GetDepth(&g_depth_est);
+      velocity_est = DepthEst_GetVelocity(&g_depth_est);
+      xSemaphoreGive(g_depthEstMutex);
+    }
 
-    // balloon_state_t balloon_state = BALLOON_INFLATING;
-    // if (xSemaphoreTake(g_balloonMutex, pdMS_TO_TICKS(5)) == pdPASS)
-    // {
-    //   balloon_state = g_balloon.state;
-    //   xSemaphoreGive(g_balloonMutex);
-    // }
-    // Telemetry_SetBalloon((int)balloon_state);   
-    // float depth_est = 0.0f;
-    // float velocity_est = 0.0f;
-    // if (xSemaphoreTake(g_depthEstMutex, pdMS_TO_TICKS(5)) == pdPASS)
-    // {
-    //   depth_est = DepthEst_GetDepth(&g_depth_est);
-    //   velocity_est = DepthEst_GetVelocity(&g_depth_est);
-    //   xSemaphoreGive(g_depthEstMutex);
-    // }
-    // TickType_t now_tick = xTaskGetTickCount();
-    // mission_status_t mission_snapshot = {0};
-    // mission_status_t *mission_locked = Mission_LockStatus(pdMS_TO_TICKS(5));
-    // if (mission_locked != NULL)
-    // {
-    //   mission_snapshot = *mission_locked;
-    //   Mission_UnlockStatus();
-    // }
-    // Telemetry_SetMissionState((int)mission_snapshot.state);
-    // Telemetry_SetDepth(depth_est, velocity_est, mission_snapshot.target_depth_m);
+    mission_status_t mission_snapshot = {0};
+    mission_status_t *mission_locked = Mission_LockStatus(pdMS_TO_TICKS(5));
+    if (mission_locked != NULL)
+    {
+      mission_snapshot = *mission_locked;
+      Mission_UnlockStatus();
+    }
 
-    // // 原子读取所有气阀遥测数据（一次锁内完成，确保数据来自同一周期）
-    // ValveTelemetryData_t valve_data;
-    // Valve_GetTelemetryData(&valve_data);
+    float ctrl_vref = 0.0f;
+    int16_t ctrl_pwm = CTRL_PWM_NEUTRAL;
+    if (xSemaphoreTake(g_depthCtrlMutex, pdMS_TO_TICKS(5)) == pdPASS)
+    {
+      ctrl_vref = DepthCtrl_GetVref(&g_depth_ctrl);
+      ctrl_pwm = DepthCtrl_GetPwm(&g_depth_ctrl);
+      xSemaphoreGive(g_depthCtrlMutex);
+    }
 
-    // Telemetry_SetPressures(valve_data.p_bag, valve_data.p_water, 
-    //                        valve_data.dPdt, valve_data.duty);
-    
-    // // 读取控制数据（互斥量保护）
-    // float vref_pub = 0.0f;
-    // int16_t pwm_pub = CTRL_PWM_NEUTRAL;
-    // if (xSemaphoreTake(g_depthCtrlMutex, pdMS_TO_TICKS(5)) == pdPASS)
-    // {
-    //   vref_pub = (mission_snapshot.state == MISSION_APPROACH || 
-    //               mission_snapshot.state == MISSION_PREP_HOLD || 
-    //               mission_snapshot.state == MISSION_DEPTH_HOLD)
-    //                 ? DepthCtrl_GetVref(&g_depth_ctrl) : 0.0f;
-    //   pwm_pub = mission_snapshot.motor_active ? DepthCtrl_GetPwm(&g_depth_ctrl) : CTRL_PWM_NEUTRAL;
-    //   xSemaphoreGive(g_depthCtrlMutex);
-    // }
-    // Telemetry_SetControl(vref_pub, pwm_pub);
-    // // 发布遥测数据（内部使用互斥量保护 + console_printf）
-    // Telemetry_Publish(now_tick);
-    
-    // 周期性延时（1秒）
+    balloon_state_t balloon_state = BALLOON_INFLATING;
+    if (xSemaphoreTake(g_balloonMutex, pdMS_TO_TICKS(5)) == pdPASS)
+    {
+      balloon_state = g_balloon.state;
+      xSemaphoreGive(g_balloonMutex);
+    }
+
+    ValveTelemetryData_t valve_data = {0};
+    Valve_GetTelemetryData(&valve_data);
+
+    float depth_target = mission_snapshot.target_depth_m;
+    float depth_err = depth_est - depth_target;
+    float vel_err = velocity_est - ctrl_vref;
+
+    telemetry_history_sample_t new_sample = {
+        .tick = now_tick,
+        .depth_err = depth_err,
+        .vel_err = vel_err,
+        .pwm = ctrl_pwm,
+        .vref = ctrl_vref
+    };
+
+    g_tlm_history[g_tlm_history_index] = new_sample;
+    g_tlm_history_index = (g_tlm_history_index + 1U) % TLM_HISTORY_LENGTH;
+    if (g_tlm_history_count < TLM_HISTORY_LENGTH)
+    {
+      g_tlm_history_count++;
+    }
+
+    const TickType_t window_ticks = pdMS_TO_TICKS(5000U);
+    size_t sample_count = 0U;
+    float depth_err_sum = 0.0f;
+    float depth_err_abs_sum = 0.0f;
+    float depth_err_sq_sum = 0.0f;
+    float depth_err_max_abs = 0.0f;
+    float vel_err_sum = 0.0f;
+    float vel_err_abs_sum = 0.0f;
+    float vel_err_sq_sum = 0.0f;
+    float vel_err_max_abs = 0.0f;
+    float pwm_sum = 0.0f;
+    float vref_sum = 0.0f;
+    int16_t pwm_min = CTRL_PWM_MAX;
+    int16_t pwm_max = CTRL_PWM_MIN;
+    size_t pwm_sat_count = 0U;
+    TickType_t oldest_tick = now_tick;
+
+    for (size_t i = 0U; i < g_tlm_history_count; ++i)
+    {
+      telemetry_history_sample_t *hist = &g_tlm_history[i];
+      TickType_t age_ticks = (now_tick >= hist->tick) ? (now_tick - hist->tick) : 0U;
+      if (age_ticks > window_ticks)
+      {
+        continue;
+      }
+
+      sample_count++;
+      if (hist->tick < oldest_tick)
+      {
+        oldest_tick = hist->tick;
+      }
+
+      float depth_err_abs = fabsf(hist->depth_err);
+      float vel_err_abs = fabsf(hist->vel_err);
+
+      depth_err_sum += hist->depth_err;
+      depth_err_abs_sum += depth_err_abs;
+      depth_err_sq_sum += hist->depth_err * hist->depth_err;
+      if (depth_err_abs > depth_err_max_abs)
+      {
+        depth_err_max_abs = depth_err_abs;
+      }
+
+      vel_err_sum += hist->vel_err;
+      vel_err_abs_sum += vel_err_abs;
+      vel_err_sq_sum += hist->vel_err * hist->vel_err;
+      if (vel_err_abs > vel_err_max_abs)
+      {
+        vel_err_max_abs = vel_err_abs;
+      }
+
+      pwm_sum += (float)hist->pwm;
+      vref_sum += hist->vref;
+      if (hist->pwm < pwm_min)
+      {
+        pwm_min = hist->pwm;
+      }
+      if (hist->pwm > pwm_max)
+      {
+        pwm_max = hist->pwm;
+      }
+      if ((hist->pwm <= CTRL_PWM_MIN) || (hist->pwm >= CTRL_PWM_MAX))
+      {
+        pwm_sat_count++;
+      }
+    }
+
+    float window_seconds = fminf(5.0f, sample_count * ((float)CTRL_STATUS_PUBLISH_MS / 1000.0f));
+    if (sample_count == 0U)
+    {
+      window_seconds = 0.0f;
+    }
+
+    float depth_err_avg = (sample_count > 0U) ? (depth_err_sum / (float)sample_count) : 0.0f;
+    float depth_err_avg_abs = (sample_count > 0U) ? (depth_err_abs_sum / (float)sample_count) : 0.0f;
+    float depth_err_rms = (sample_count > 0U) ? sqrtf(depth_err_sq_sum / (float)sample_count) : 0.0f;
+
+    float vel_err_avg = (sample_count > 0U) ? (vel_err_sum / (float)sample_count) : 0.0f;
+    float vel_err_avg_abs = (sample_count > 0U) ? (vel_err_abs_sum / (float)sample_count) : 0.0f;
+    float vel_err_rms = (sample_count > 0U) ? sqrtf(vel_err_sq_sum / (float)sample_count) : 0.0f;
+
+    float pwm_avg = (sample_count > 0U) ? (pwm_sum / (float)sample_count) : (float)CTRL_PWM_NEUTRAL;
+    float vref_avg = (sample_count > 0U) ? (vref_sum / (float)sample_count) : 0.0f;
+    float pwm_sat_pct = (sample_count > 0U) ? ((float)pwm_sat_count * 100.0f / (float)sample_count) : 0.0f;
+
+    // console_printf("System Status: IMU=%s MS5837=%s BARO=%s | samples=%u window=%.1fs\r\n",
+    //                imu->data_valid ? "OK" : "--",
+    //                ms5837->data_valid ? "OK" : "--",
+    //                baro->data_valid ? "OK" : "--",
+    //                (unsigned int)sample_count,
+    //                window_seconds);
+
+    console_printf("Depth=%.2f,Depth_target=%.2f,err=%.3f,depth_err_avg=%.3f,abs=%.3f,rms=%.3f,max_abs=%.3f\r\n",
+                   depth_est, depth_target, depth_err,
+                   depth_err_avg, depth_err_avg_abs, depth_err_rms, depth_err_max_abs);
+
+    console_printf("Velocity=%.3f,V_ref=%.3f,err=%.3f | avg=%.3f,abs=%.3fm,rms=%.3fm,max_abs=%.3fm\r\n",
+                   velocity_est, ctrl_vref, vel_err,
+                   vel_err_avg, vel_err_avg_abs, vel_err_rms, vel_err_max_abs);
+
+    console_printf("PWM: now %d,avg=%.0f,min=%d,max=%d,sat=%.1f%% | vref_avg=%.3f\r\n",
+                   ctrl_pwm, pwm_avg, pwm_min, pwm_max, pwm_sat_pct, vref_avg);
+
+    console_printf("Mission: state %d ctrl_mode %d motor %s valve %s balloon %d\r\n",
+                   (int)mission_snapshot.state,
+                   (int)mission_snapshot.ctrl_mode,
+                   mission_snapshot.motor_active ? "ON" : "OFF",
+                   mission_snapshot.valve_enable ? "ON" : "OFF",
+                   (int)balloon_state);
+
+    // console_printf("Valve: duty %.2f p_bag %.2f p_water %.2f dPdt %.2f\r\n",
+    //                valve_data.duty,
+    //                valve_data.p_bag,
+    //                valve_data.p_water,
+    //                valve_data.dPdt);
+
+    // console_printf("IMU: Angle[%.2f,%.2f,%.2f] Accel[%.2f,%.2f,%.2f] | MS5837: T=%.2fC D=%.2fm P=%.2fkPa | BARO: %.2fkPa (%.3fV, raw=%u)\r\n",
+    //                imu->angleX, imu->angleY, imu->angleZ,
+    //                imu->accelX, imu->accelY, imu->accelZ,
+    //                ms5837->temperature, ms5837->depth, ms5837->pressure_water,
+    //                baro->pressure_bag, baro->voltage_v, baro->raw);
+
     vTaskDelayUntil(&xLastWakeTime, xPeriod);
   }
 }

@@ -90,6 +90,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Controls/Src/mission_exec.c
     Controls/Src/balloon_state.c
     Controls/Src/telemetry.c
+    Controls/Src/time_utils.c
     Controls/Src/actuators.c
     Controls/Src/sensors_data_get.c
     Controls/Src/control_loop.c
