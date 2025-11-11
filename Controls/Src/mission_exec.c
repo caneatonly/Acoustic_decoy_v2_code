@@ -13,6 +13,7 @@ void Mission_Execute(TickType_t now_tick, float depth_est, float velocity_est, d
 
     // 检测任务状态是否变化
     const bool state_changed = Mission_HasStateChanged();
+    const bool tuning_mode = ControlTasks_IsPidTuningMode();
     static TickType_t recovery_heartbeat_next_tick = 0;
     static TickType_t failsafe_heartbeat_next_tick = 0;
 
@@ -29,108 +30,122 @@ void Mission_Execute(TickType_t now_tick, float depth_est, float velocity_est, d
     // - DEPTH_HOLD:  motor=ON,  valve=ON（维持dp裕量）
     // - DWELL:       motor=OFF, valve=ON（允许小幅浮力微调）
     // - RECOVERY:    motor=ON,  valve=OFF（主动上浮）
-    switch (s->state) {
-        case MISSION_APPROACH:
-            s->motor_active = true;
-            s->ctrl_mode = DEPTH_CTRL_MODE_APPROACH;
-            s->force_vref = false;
-            s->valve_enable = false;
-            break;
-        case MISSION_PREP_HOLD:
-            s->motor_active = true;
-            s->ctrl_mode = DEPTH_CTRL_MODE_HOLD;
-            s->force_vref = true;
-            s->vref_cmd = 0.0f;
-            s->valve_enable = true;
-            if (state_changed) {
-                // 进入 PREP_HOLD 时释放整流罩
-                Actuators_FairingRelease();
-                if (g_balloonStartSem != NULL) {
-                    (void)xSemaphoreGive(g_balloonStartSem);
+    if (tuning_mode)
+    {
+        s->motor_active = true;
+        s->ctrl_mode = DEPTH_CTRL_MODE_APPROACH;
+        s->force_vref = !ControlTasks_IsOuterLoopEnabled();
+        if (s->force_vref)
+        {
+            s->vref_cmd = ControlTasks_GetManualVref();
+        }
+        s->valve_enable = false;
+    }
+    else
+    {
+        switch (s->state) {
+            case MISSION_APPROACH:
+                s->motor_active = true;
+                s->ctrl_mode = DEPTH_CTRL_MODE_APPROACH;
+                s->force_vref = false;
+                s->valve_enable = false;
+                break;
+            case MISSION_PREP_HOLD:
+                s->motor_active = true;
+                s->ctrl_mode = DEPTH_CTRL_MODE_HOLD;
+                s->force_vref = true;
+                s->vref_cmd = 0.0f;
+                s->valve_enable = true;
+                if (state_changed) {
+                    // 进入 PREP_HOLD 时释放整流罩
+                    Actuators_FairingRelease();
+                    if (g_balloonStartSem != NULL) {
+                        (void)xSemaphoreGive(g_balloonStartSem);
+                    }
+                    Mission_AckStateChange();
+                    // 进入零速保持前重置控制器积分，避免残余积分导致漂移
+                    DepthCtrl_ResetIntegrators(ctrl);
                 }
-                Mission_AckStateChange();
-                // 进入零速保持前重置控制器积分，避免残余积分导致漂移
-                DepthCtrl_ResetIntegrators(ctrl);
-            }
-            break;
-        case MISSION_DEPTH_HOLD:
-            s->motor_active = true;
-            s->ctrl_mode = DEPTH_CTRL_MODE_HOLD;
-            s->force_vref = false; 
-            s->valve_enable = true; 
-            break;
-        case MISSION_DWELL_MONITOR:
-            s->motor_active = false; 
-            s->valve_enable = true;  
-            s->ctrl_mode = DEPTH_CTRL_MODE_HOLD;
-            s->force_vref = true;
-            s->vref_cmd = 0.0f;
-            break;
-        case MISSION_RECOVERY_ASCEND:
-            // 回收阶段：打开电机，命令上浮速度
-            s->motor_active = true;
-            s->ctrl_mode = DEPTH_CTRL_MODE_APPROACH; 
-            s->force_vref = true;
-            s->vref_cmd = CTRL_RECOVERY_ASCEND_VREF;
-            s->valve_enable = false; 
-            if (state_changed) {
-                Mission_AckStateChange();
-                // 进入回收阶段，重置积分，避免残余积分影响上浮
-                DepthCtrl_ResetIntegrators(ctrl);
-            }
-            break;
-        case MISSION_RECOVERY_SHUTDOWN:
-            s->motor_active = false;
-            s->valve_enable = false;
-            if (state_changed) {
-                Mission_AckStateChange();
-                recovery_heartbeat_next_tick = now_tick;
-                DepthCtrl_ResetIntegrators(ctrl);
-                if (Valve_ControlAlgorithm_IsEnabled()) {
-                    Valve_ControlAlgorithm_Enable(false);
+                break;
+            case MISSION_DEPTH_HOLD:
+                s->motor_active = true;
+                s->ctrl_mode = DEPTH_CTRL_MODE_HOLD;
+                s->force_vref = false; 
+                s->valve_enable = true; 
+                break;
+            case MISSION_DWELL_MONITOR:
+                s->motor_active = false; 
+                s->valve_enable = true;  
+                s->ctrl_mode = DEPTH_CTRL_MODE_HOLD;
+                s->force_vref = true;
+                s->vref_cmd = 0.0f;
+                break;
+            case MISSION_RECOVERY_ASCEND:
+                // 回收阶段：打开电机，命令上浮速度
+                s->motor_active = true;
+                s->ctrl_mode = DEPTH_CTRL_MODE_APPROACH; 
+                s->force_vref = true;
+                s->vref_cmd = CTRL_RECOVERY_ASCEND_VREF;
+                s->valve_enable = false; 
+                if (state_changed) {
+                    Mission_AckStateChange();
+                    // 进入回收阶段，重置积分，避免残余积分影响上浮
+                    DepthCtrl_ResetIntegrators(ctrl);
+                }
+                break;
+            case MISSION_RECOVERY_SHUTDOWN:
+                s->motor_active = false;
+                s->valve_enable = false;
+                if (state_changed) {
+                    Mission_AckStateChange();
+                    recovery_heartbeat_next_tick = now_tick;
+                    DepthCtrl_ResetIntegrators(ctrl);
+                    if (Valve_ControlAlgorithm_IsEnabled()) {
+                        Valve_ControlAlgorithm_Enable(false);
+                    }
+                    Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL);
+                    Actuators_ValveClose();
+                    Actuators_12V_PowerOff();
+                }
+
+                if (now_tick >= recovery_heartbeat_next_tick) {
+                    console_printf("Recovery complete: Surface reached, shutting down.\r\n");
+                    Actuators_LedToggle();
+                    recovery_heartbeat_next_tick = now_tick + pdMS_TO_TICKS(1000u);
                 }
                 Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL);
                 Actuators_ValveClose();
                 Actuators_12V_PowerOff();
-            }
-
-            if (now_tick >= recovery_heartbeat_next_tick) {
-                console_printf("Recovery complete: Surface reached, shutting down.\r\n");
-                Actuators_LedToggle();
-                recovery_heartbeat_next_tick = now_tick + pdMS_TO_TICKS(1000u);
-            }
-            Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL);
-            Actuators_ValveClose();
-            Actuators_12V_PowerOff();
-            return;
-        case MISSION_FAILSAFE:
-            s->motor_active = false;
-            s->valve_enable = false;
-            if (state_changed) {
-                Mission_AckStateChange();
-                failsafe_heartbeat_next_tick = now_tick;
-                DepthCtrl_ResetIntegrators(ctrl);
-                if (Valve_ControlAlgorithm_IsEnabled()) {
-                    Valve_ControlAlgorithm_Enable(false);
+                return;
+            case MISSION_FAILSAFE:
+                s->motor_active = false;
+                s->valve_enable = false;
+                if (state_changed) {
+                    Mission_AckStateChange();
+                    failsafe_heartbeat_next_tick = now_tick;
+                    DepthCtrl_ResetIntegrators(ctrl);
+                    if (Valve_ControlAlgorithm_IsEnabled()) {
+                        Valve_ControlAlgorithm_Enable(false);
+                    }
+                    Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL);
+                    Actuators_ValveClose();
+                    Actuators_12V_PowerOff();
                 }
+
+                if (now_tick >= failsafe_heartbeat_next_tick) {
+                    console_printf("Mission stopped: FAILSAFE active.\r\n");
+                    Actuators_LedToggle();
+                    failsafe_heartbeat_next_tick = now_tick + pdMS_TO_TICKS(1000u);
+                }
+
                 Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL);
                 Actuators_ValveClose();
                 Actuators_12V_PowerOff();
-            }
-
-            if (now_tick >= failsafe_heartbeat_next_tick) {
-                console_printf("Mission stopped: FAILSAFE active.\r\n");
-                Actuators_LedToggle();
-                failsafe_heartbeat_next_tick = now_tick + pdMS_TO_TICKS(1000u);
-            }
-
-            Actuators_SetMotorPwm(CTRL_PWM_NEUTRAL);
-            Actuators_ValveClose();
-            Actuators_12V_PowerOff();
-            return;
-        default:
-            // keep defaults
-            break;
+                return;
+            default:
+                // keep defaults
+                break;
+        }
     }
 
     // 阀门控制：仅在状态变化时切换
@@ -144,7 +159,7 @@ void Mission_Execute(TickType_t now_tick, float depth_est, float velocity_est, d
         DepthCtrl_SetMode(ctrl, s->ctrl_mode);
         DepthCtrl_ForceVref(ctrl, s->force_vref, s->vref_cmd);
         // 深度控制器更新（核心实现）
-    DepthCtrl_Update(ctrl, depth_est, velocity_est, now_tick);
+        DepthCtrl_Update(ctrl, depth_est, velocity_est, now_tick);
         pwm = DepthCtrl_GetPwm(ctrl);
     }
     

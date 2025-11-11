@@ -234,6 +234,206 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
             console_printf("ERR: usage ctrl on|off|?\r\n"); 
         }
     }
+    else if (strncmp(cmd, "pid", 3) == 0)
+    {
+        const char *args = cmd + 3;
+        while (*args == ' ') { args++; }
+
+        if (*args == '\0' || strcmp(args, "help") == 0)
+        {
+            console_printf("PID命令帮助:\r\n");
+            console_printf("  pid mode on|off        - 启用/退出在线调参模式\r\n");
+            console_printf("  pid outer on|off [v]   - 外环正常或禁用(可指定手动vref)\r\n");
+            console_printf("  pid vref <value>       - 调整手动速度参考\r\n");
+            console_printf("  pid set <loop> <mode> <kp|ki|kd> <value> - 修改增益\r\n");
+            console_printf("  pid show               - 查看当前调参状态\r\n");
+            return;
+        }
+
+        if (strncmp(args, "mode", 4) == 0)
+        {
+            args += 4;
+            while (*args == ' ') { args++; }
+            if (strncmp(args, "on", 2) == 0)
+            {
+                ControlTasks_SetPidTuningMode(true);
+                console_printf("pid: 调参模式已开启，任务状态固定为Approach\r\n");
+            }
+            else if (strncmp(args, "off", 3) == 0)
+            {
+                ControlTasks_SetPidTuningMode(false);
+                console_printf("pid: 调参模式已关闭，任务状态机恢复\r\n");
+            }
+            else
+            {
+                console_printf("pid: 用法 pid mode on|off\r\n");
+            }
+            return;
+        }
+
+        if (strncmp(args, "outer", 5) == 0)
+        {
+            args += 5;
+            while (*args == ' ') { args++; }
+            if (strncmp(args, "on", 2) == 0)
+            {
+                if (ControlTasks_SetOuterLoopEnabled(true, 0.0f) == pdPASS)
+                {
+                    console_printf("pid: 外环已恢复启用\r\n");
+                }
+                else
+                {
+                    console_printf("pid: 外环启用失败(控制器忙)\r\n");
+                }
+            }
+            else if (strncmp(args, "off", 3) == 0)
+            {
+                args += 3;
+                while (*args == ' ') { args++; }
+                float manual_vref = ControlTasks_GetManualVref();
+                if (*args != '\0')
+                {
+                    char *endptr = NULL;
+                    manual_vref = strtof(args, &endptr);
+                    if (endptr == args)
+                    {
+                        console_printf("pid: 手动vref解析失败\r\n");
+                        return;
+                    }
+                }
+                if (ControlTasks_SetOuterLoopEnabled(false, manual_vref) == pdPASS)
+                {
+                    console_printf("pid: 外环已禁用，手动vref=%.3f\r\n", manual_vref);
+                }
+                else
+                {
+                    console_printf("pid: 外环禁用失败(控制器忙)\r\n");
+                }
+            }
+            else
+            {
+                console_printf("pid: 用法 pid outer on|off [vref]\r\n");
+            }
+            return;
+        }
+
+        if (strncmp(args, "vref", 4) == 0)
+        {
+            args += 4;
+            while (*args == ' ') { args++; }
+            if (*args == '\0')
+            {
+                console_printf("pid: 用法 pid vref <value>\r\n");
+                return;
+            }
+            char *endptr = NULL;
+            float manual_vref = strtof(args, &endptr);
+            if (endptr == args)
+            {
+                console_printf("pid: 手动vref解析失败\r\n");
+                return;
+            }
+            if (ControlTasks_SetManualVref(manual_vref) == pdPASS)
+            {
+                console_printf("pid: 手动vref设为 %.3f\r\n", manual_vref);
+            }
+            else
+            {
+                console_printf("pid: 设置vref失败(控制器忙)\r\n");
+            }
+            return;
+        }
+
+        if (strncmp(args, "set", 3) == 0)
+        {
+            args += 3;
+            while (*args == ' ') { args++; }
+
+            char loop_tok[8] = {0};
+            char mode_tok[8] = {0};
+            char term_tok[4] = {0};
+            float value = 0.0f;
+            if (sscanf(args, "%7s %7s %3s %f", loop_tok, mode_tok, term_tok, &value) != 4)
+            {
+                console_printf("pid: 用法 pid set <depth|vel> <app|hold> <kp|ki|kd> <value>\r\n");
+                return;
+            }
+
+            for (size_t i = 0; loop_tok[i] != '\0'; ++i) { loop_tok[i] = (char)tolower((unsigned char)loop_tok[i]); }
+            for (size_t i = 0; mode_tok[i] != '\0'; ++i) { mode_tok[i] = (char)tolower((unsigned char)mode_tok[i]); }
+            for (size_t i = 0; term_tok[i] != '\0'; ++i) { term_tok[i] = (char)tolower((unsigned char)term_tok[i]); }
+
+            pid_loop_t loop_sel;
+            if (strcmp(loop_tok, "depth") == 0)
+            {
+                loop_sel = PID_LOOP_DEPTH;
+            }
+            else if (strcmp(loop_tok, "vel") == 0 || strcmp(loop_tok, "velocity") == 0)
+            {
+                loop_sel = PID_LOOP_VELOCITY;
+            }
+            else
+            {
+                console_printf("pid: loop应为 depth 或 vel\r\n");
+                return;
+            }
+
+            pid_mode_t mode_sel;
+            if (strcmp(mode_tok, "app") == 0 || strcmp(mode_tok, "approach") == 0)
+            {
+                mode_sel = PID_MODE_APPROACH;
+            }
+            else if (strcmp(mode_tok, "hold") == 0)
+            {
+                mode_sel = PID_MODE_HOLD;
+            }
+            else
+            {
+                console_printf("pid: mode应为 app 或 hold\r\n");
+                return;
+            }
+
+            pid_term_t term_sel;
+            if (strcmp(term_tok, "kp") == 0)
+            {
+                term_sel = PID_TERM_KP;
+            }
+            else if (strcmp(term_tok, "ki") == 0)
+            {
+                term_sel = PID_TERM_KI;
+            }
+            else if (strcmp(term_tok, "kd") == 0)
+            {
+                term_sel = PID_TERM_KD;
+            }
+            else
+            {
+                console_printf("pid: 参数应为 kp|ki|kd\r\n");
+                return;
+            }
+
+            if (ControlTasks_UpdatePidGain(loop_sel, mode_sel, term_sel, value) == pdPASS)
+            {
+                console_printf("pid: %s-%s %s=%.6f\r\n",
+                               (loop_sel == PID_LOOP_DEPTH) ? "depth" : "vel",
+                               (mode_sel == PID_MODE_APPROACH) ? "app" : "hold",
+                               term_tok, value);
+            }
+            else
+            {
+                console_printf("pid: 更新失败(控制器忙)\r\n");
+            }
+            return;
+        }
+
+        if (strncmp(args, "show", 4) == 0)
+        {
+            ControlTasks_PrintPidStatus();
+            return;
+        }
+
+        console_printf("pid: 未知子命令，输入 pid help 查看用法\r\n");
+    }
     else
     {
         // 未知命令

@@ -33,6 +33,189 @@ static depth_estimator_t g_depth_est;
 static depth_ctrl_t g_depth_ctrl = {0};
 static balloon_status_t g_balloon = {0};
 
+static volatile bool g_pid_tuning_mode = false;
+static volatile bool g_pid_outer_loop_enabled = true;
+static float g_pid_manual_vref = 0.0f;
+
+#define DEPTH_CTRL_MUTEX_TIMEOUT   pdMS_TO_TICKS(10)
+
+bool ControlTasks_IsPidTuningMode(void)
+{
+  return g_pid_tuning_mode;
+}
+
+void ControlTasks_SetPidTuningMode(bool enable)
+{
+  if (enable == g_pid_tuning_mode)
+  {
+    return;
+  }
+
+  g_pid_tuning_mode = enable;
+
+  mission_status_t *status = Mission_LockStatus(pdMS_TO_TICKS(10));
+  if (status != NULL)
+  {
+    status->state = MISSION_APPROACH;
+    status->prev_state = MISSION_APPROACH;
+    status->ctrl_mode = DEPTH_CTRL_MODE_APPROACH;
+    status->motor_active = true;
+    status->force_vref = !g_pid_outer_loop_enabled;
+    status->vref_cmd = g_pid_outer_loop_enabled ? 0.0f : g_pid_manual_vref;
+    Mission_UnlockStatus();
+  }
+
+  if (xSemaphoreTake(g_depthCtrlMutex, DEPTH_CTRL_MUTEX_TIMEOUT) == pdPASS)
+  {
+    DepthCtrl_ResetIntegrators(&g_depth_ctrl);
+    if (g_pid_outer_loop_enabled)
+    {
+      DepthCtrl_ForceVref(&g_depth_ctrl, false, 0.0f);
+    }
+    else
+    {
+      DepthCtrl_ForceVref(&g_depth_ctrl, true, g_pid_manual_vref);
+    }
+    xSemaphoreGive(g_depthCtrlMutex);
+  }
+}
+
+bool ControlTasks_IsOuterLoopEnabled(void)
+{
+  return g_pid_outer_loop_enabled;
+}
+
+BaseType_t ControlTasks_SetOuterLoopEnabled(bool enable, float manual_vref)
+{
+  if (!enable)
+  {
+    g_pid_manual_vref = manual_vref;
+  }
+  g_pid_outer_loop_enabled = enable;
+
+  BaseType_t result = pdFAIL;
+  if (xSemaphoreTake(g_depthCtrlMutex, DEPTH_CTRL_MUTEX_TIMEOUT) == pdPASS)
+  {
+    if (enable)
+    {
+      DepthCtrl_ForceVref(&g_depth_ctrl, false, 0.0f);
+    }
+    else
+    {
+      DepthCtrl_ForceVref(&g_depth_ctrl, true, g_pid_manual_vref);
+    }
+    result = pdPASS;
+    xSemaphoreGive(g_depthCtrlMutex);
+  }
+
+  return result;
+}
+
+BaseType_t ControlTasks_SetManualVref(float manual_vref)
+{
+  g_pid_manual_vref = manual_vref;
+
+  if (!g_pid_outer_loop_enabled)
+  {
+    BaseType_t result = pdFAIL;
+    if (xSemaphoreTake(g_depthCtrlMutex, DEPTH_CTRL_MUTEX_TIMEOUT) == pdPASS)
+    {
+      DepthCtrl_ForceVref(&g_depth_ctrl, true, g_pid_manual_vref);
+      result = pdPASS;
+      xSemaphoreGive(g_depthCtrlMutex);
+    }
+    return result;
+  }
+
+  return pdPASS;
+}
+
+float ControlTasks_GetManualVref(void)
+{
+  return g_pid_manual_vref;
+}
+
+BaseType_t ControlTasks_UpdatePidGain(pid_loop_t loop, pid_mode_t mode, pid_term_t term, float value)
+{
+  BaseType_t result = pdFAIL;
+
+  if (xSemaphoreTake(g_depthCtrlMutex, DEPTH_CTRL_MUTEX_TIMEOUT) == pdPASS)
+  {
+    pid_gains_t *gains = NULL;
+    if (loop == PID_LOOP_DEPTH)
+    {
+      gains = (mode == PID_MODE_APPROACH) ? &g_depth_ctrl.cfg.depth_app : &g_depth_ctrl.cfg.depth_hold;
+    }
+    else
+    {
+      gains = (mode == PID_MODE_APPROACH) ? &g_depth_ctrl.cfg.vel_app : &g_depth_ctrl.cfg.vel_hold;
+    }
+
+    if (gains != NULL)
+    {
+      switch (term)
+      {
+        case PID_TERM_KP:
+          gains->kp = value;
+          result = pdPASS;
+          break;
+        case PID_TERM_KI:
+          gains->ki = value;
+          result = pdPASS;
+          break;
+        case PID_TERM_KD:
+          gains->kd = value;
+          result = pdPASS;
+          break;
+        default:
+          break;
+      }
+    }
+    xSemaphoreGive(g_depthCtrlMutex);
+  }
+
+  return result;
+}
+
+void ControlTasks_PrintPidStatus(void)
+{
+  depth_ctrl_config_t cfg_copy = {0};
+  float vref = 0.0f;
+  float vref_prev = 0.0f;
+  int16_t pwm = CTRL_PWM_NEUTRAL;
+
+  if (xSemaphoreTake(g_depthCtrlMutex, DEPTH_CTRL_MUTEX_TIMEOUT) == pdPASS)
+  {
+    cfg_copy = g_depth_ctrl.cfg;
+    vref = g_depth_ctrl.v_ref;
+    vref_prev = g_depth_ctrl.v_ref_prev;
+    pwm = g_depth_ctrl.pwm_cmd;
+    xSemaphoreGive(g_depthCtrlMutex);
+  }
+  else
+  {
+    console_printf("pid: depth controller busy\r\n");
+    return;
+  }
+
+  console_printf("PID调参模式: %s\r\n", g_pid_tuning_mode ? "开启" : "关闭");
+  console_printf("  外环: %s\r\n", g_pid_outer_loop_enabled ? "启用" : "禁用(手动)" );
+  if (!g_pid_outer_loop_enabled)
+  {
+    console_printf("    手动速度参考: %.3f m/s\r\n", g_pid_manual_vref);
+  }
+  console_printf("  当前vref: %.3f m/s (prev=%.3f)\r\n", vref, vref_prev);
+  console_printf("  当前PWM: %d\r\n", (int)pwm);
+  console_printf("  深度环(APP): Kp=%.4f Ki=%.4f Kd=%.4f\r\n",
+                 cfg_copy.depth_app.kp, cfg_copy.depth_app.ki, cfg_copy.depth_app.kd);
+  console_printf("  深度环(HOLD): Kp=%.4f Ki=%.4f Kd=%.4f\r\n",
+                 cfg_copy.depth_hold.kp, cfg_copy.depth_hold.ki, cfg_copy.depth_hold.kd);
+  console_printf("  速度环(APP): Kp=%.4f Ki=%.4f Kd=%.4f\r\n",
+                 cfg_copy.vel_app.kp, cfg_copy.vel_app.ki, cfg_copy.vel_app.kd);
+  console_printf("  速度环(HOLD): Kp=%.4f Ki=%.4f Kd=%.4f\r\n",
+                 cfg_copy.vel_hold.kp, cfg_copy.vel_hold.ki, cfg_copy.vel_hold.kd);
+}
+
 SemaphoreHandle_t g_depthEstMutex = NULL;
 SemaphoreHandle_t g_depthCtrlMutex = NULL;
 SemaphoreHandle_t g_balloonMutex = NULL;
@@ -255,9 +438,12 @@ void Task_Telemetry(void *argument)
   {    
     TickType_t now_tick = xTaskGetTickCount();
 
-    const IMU_Data_t* imu = IMU_GetData();
-    const MS5837_Data_t* ms5837 = MS5837_GetData();
-    const BaroADC_Data_t* baro = BaroADC_GetData();
+  const IMU_Data_t* imu = IMU_GetData();
+  const MS5837_Data_t* ms5837 = MS5837_GetData();
+  const BaroADC_Data_t* baro = BaroADC_GetData();
+  (void)imu;
+  (void)ms5837;
+  (void)baro;
 
     float depth_est = 0.0f;
     float velocity_est = 0.0f;
@@ -381,7 +567,8 @@ void Task_Telemetry(void *argument)
       }
     }
 
-    float window_seconds = fminf(5.0f, sample_count * ((float)CTRL_STATUS_PUBLISH_MS / 1000.0f));
+  float window_seconds = fminf(5.0f, sample_count * ((float)CTRL_STATUS_PUBLISH_MS / 1000.0f));
+  (void)window_seconds;
     if (sample_count == 0U)
     {
       window_seconds = 0.0f;
@@ -488,6 +675,23 @@ void Task_MissionManager(void *argument)
     }
     
     // 3. Mission Manager 统一管理阶段切换
+    if (ControlTasks_IsPidTuningMode())
+    {
+      mission_status_t *status = Mission_LockStatus(pdMS_TO_TICKS(5));
+      if (status != NULL)
+      {
+        status->state = MISSION_APPROACH;
+        status->prev_state = MISSION_APPROACH;
+        status->ctrl_mode = DEPTH_CTRL_MODE_APPROACH;
+        status->motor_active = true;
+        status->force_vref = !ControlTasks_IsOuterLoopEnabled();
+        status->vref_cmd = status->force_vref ? ControlTasks_GetManualVref() : 0.0f;
+        Mission_UnlockStatus();
+      }
+      vTaskDelayUntil(&xLastWakeTime, xPeriod);
+      continue;
+    }
+
     Mission_Update(now_tick, depth_est, velocity_est, balloon_state);
   
     // 周期性延时
