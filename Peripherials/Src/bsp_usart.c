@@ -4,6 +4,7 @@
 #include "bsp_io.h"
 #include "control_tasks.h"
 #include "control_config.h"
+#include "mission_manager.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -140,6 +141,9 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         console_printf("  power_off             - Disable 12V power\r\n");
         console_printf("  reset                 - System reset\r\n");
         console_printf("\r\n");
+        console_printf("Mission Control:\r\n");
+        console_printf("  depth <val>           - Set target depth (m)\r\n");
+        console_printf("\r\n");
     }
     else if (strcmp(cmd, "ver") == 0)
     {
@@ -232,6 +236,16 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
         }
         else { 
             console_printf("ERR: usage ctrl on|off|?\r\n"); 
+        }
+    }
+    else if (strncmp(cmd, "depth ", 6) == 0)
+    {
+        float new_depth = strtof(cmd + 6, NULL);
+        if (new_depth >= 0.0f) {
+            Mission_SetTargetDepth(new_depth);
+            console_printf("Target depth set to %.2fm\r\n", new_depth);
+        } else {
+            console_printf("ERR: Invalid depth value\r\n");
         }
     }
     else

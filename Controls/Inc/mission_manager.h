@@ -47,5 +47,7 @@ bool Mission_HasStateChanged(void);
 // Acknowledge the state change so future calls return false until next change
 void Mission_AckStateChange(void);
 
+// Manually update target depth during runtime
+void Mission_SetTargetDepth(float depth_m);
 
 #endif // MISSION_MANAGER_H

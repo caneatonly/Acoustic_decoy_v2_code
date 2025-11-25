@@ -10,8 +10,8 @@ Email: zyshine3@sjtu.edu.cn
 
 // Depth bands / thresholds
 #define CTRL_DEPTH_TARGET_M             (2.0f)     // 目标深度
-#define CTRL_PREP_BAND_ENTER_M                (0.30f)    // 进入深度预备区阈值
-#define CTRL_PREP_BAND_EXIT_M                 (0.45f)    // 退出深度预备区阈值
+#define CTRL_PREP_BAND_ENTER_M          (0.30f)    // 进入深度预备区阈值
+#define CTRL_PREP_BAND_EXIT_M           (0.45f)    // 退出深度预备区阈值
 #define CTRL_V_NEAR_ZERO_MPS            (0.05f)   // 速度接近零阈值，用于判断是否进入HOLD
 #define CTRL_PERIOD_MS                   (10u)     // 控制循环周期10ms
 
@@ -25,18 +25,18 @@ Email: zyshine3@sjtu.edu.cn
 
 // PID defaults (占位！！需要进行参数整定)
 // Approach模式下 串级PID增益
-#define PID_Z_KP_APP   (0.4f)
-#define PID_Z_KI_APP   (0.02f)
+#define PID_Z_KP_APP   (0.12f)
+#define PID_Z_KI_APP   (0.09f)
 #define PID_Z_KD_APP   (0.0f)
-#define PID_V_KP_APP   (-1000.0f)
-#define PID_V_KI_APP   (-150.0f)
+#define PID_V_KP_APP   (-400.0f)
+#define PID_V_KI_APP   (-5.0f)
 #define PID_V_KD_APP   (0.0f)
 // Hold模式下 串级PID增益
-#define PID_Z_KP_HOLD  (0.4f)
-#define PID_Z_KI_HOLD  (0.02f)
+#define PID_Z_KP_HOLD  (0.1f)
+#define PID_Z_KI_HOLD  (0.09f)
 #define PID_Z_KD_HOLD  (0.0f)
-#define PID_V_KP_HOLD  (-1000.0f)
-#define PID_V_KI_HOLD  (-150.0f)
+#define PID_V_KP_HOLD  (-400.0f)
+#define PID_V_KI_HOLD  (-5.0f)
 #define PID_V_KD_HOLD  (0.0f)
 
 // Ramps / limits

@@ -241,3 +241,11 @@ void Mission_AckStateChange(void){
         Mission_UnlockStatus();
     }
 }
+
+void Mission_SetTargetDepth(float depth_m) {
+    mission_status_t *status = Mission_LockStatus(portMAX_DELAY);
+    if (status != NULL) {
+        status->target_depth_m = depth_m;
+        Mission_UnlockStatus();
+    }
+}

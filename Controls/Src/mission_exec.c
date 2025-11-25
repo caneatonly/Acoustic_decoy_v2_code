@@ -142,13 +142,12 @@ void Mission_Execute(TickType_t now_tick, float depth_est, float velocity_est, d
     int16_t pwm = CTRL_PWM_NEUTRAL;
     if (s->motor_active) {
         DepthCtrl_SetMode(ctrl, s->ctrl_mode);
+        DepthCtrl_SetTarget(ctrl, s->target_depth_m);
         DepthCtrl_ForceVref(ctrl, s->force_vref, s->vref_cmd);
         // 深度控制器更新（核心实现）
-    DepthCtrl_Update(ctrl, depth_est, velocity_est, now_tick);
+        DepthCtrl_Update(ctrl, depth_est, velocity_est, now_tick);
         pwm = DepthCtrl_GetPwm(ctrl);
-    }
-    
-    // 推进器输出
+    }    // 推进器输出
     Actuators_SetMotorPwm(pwm);
 
     // 气阀控制（核心实现）
