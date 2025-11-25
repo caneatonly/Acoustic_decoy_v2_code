@@ -65,5 +65,6 @@ bool ControlTasks_IsOuterLoopEnabled(void);
 BaseType_t ControlTasks_SetOuterLoopEnabled(bool enable, float manual_vref);
 BaseType_t ControlTasks_SetManualVref(float manual_vref);
 float ControlTasks_GetManualVref(void);
+BaseType_t ControlTasks_SetTargetDepth(float depth_m);
 BaseType_t ControlTasks_UpdatePidGain(pid_loop_t loop, pid_mode_t mode, pid_term_t term, float value);
 void ControlTasks_PrintPidStatus(void);

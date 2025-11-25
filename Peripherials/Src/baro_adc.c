@@ -89,7 +89,7 @@ void BaroADC_Init(ADC_HandleTypeDef* hadc)
     g_baro_data.timestamp = 0;
     //校准
     HAL_ADCEx_Calibration_Start(hadc);
-    // 启动外部触发+中断（TIM3 TRGO 已在 Cube 配置）
+    // 启动外部触发（AD转换外部触发源已设置为 TIM3 TRGO）+中断（TIM3 TRGO 已在 Cube 配置为Update Event）
     HAL_ADC_Start_IT(g_baro_priv.hadc);
 }
 

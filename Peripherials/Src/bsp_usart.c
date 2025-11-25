@@ -245,6 +245,7 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
             console_printf("  pid mode on|off        - 启用/退出在线调参模式\r\n");
             console_printf("  pid outer on|off [v]   - 外环正常或禁用(可指定手动vref)\r\n");
             console_printf("  pid vref <value>       - 调整手动速度参考\r\n");
+            console_printf("  pid depth <value>      - 调整目标深度\r\n");
             console_printf("  pid set <loop> <mode> <kp|ki|kd> <value> - 修改增益\r\n");
             console_printf("  pid show               - 查看当前调参状态\r\n");
             return;
@@ -340,6 +341,33 @@ void ProcessUART1Command(uint8_t *command, uint8_t length)
             else
             {
                 console_printf("pid: 设置vref失败(控制器忙)\r\n");
+            }
+            return;
+        }
+
+        if (strncmp(args, "depth", 5) == 0)
+        {
+            args += 5;
+            while (*args == ' ') { args++; }
+            if (*args == '\0')
+            {
+                console_printf("pid: 用法 pid depth <value>\r\n");
+                return;
+            }
+            char *endptr = NULL;
+            float target_depth = strtof(args, &endptr);
+            if (endptr == args)
+            {
+                console_printf("pid: 目标深度解析失败\r\n");
+                return;
+            }
+            if (ControlTasks_SetTargetDepth(target_depth) == pdPASS)
+            {
+                console_printf("pid: 目标深度设为 %.3f m\r\n", target_depth);
+            }
+            else
+            {
+                console_printf("pid: 设置目标深度失败(控制器忙)\r\n");
             }
             return;
         }

@@ -9,7 +9,7 @@ Email: zyshine3@sjtu.edu.cn
 */
 
 // Depth bands / thresholds
-#define CTRL_DEPTH_TARGET_M             (2.0f)     // 目标深度
+#define CTRL_DEPTH_TARGET_M             (1.0f)     // 目标深度
 #define CTRL_PREP_BAND_ENTER_M                (0.30f)    // 进入深度预备区阈值
 #define CTRL_PREP_BAND_EXIT_M                 (0.45f)    // 退出深度预备区阈值
 #define CTRL_V_NEAR_ZERO_MPS            (0.05f)   // 速度接近零阈值，用于判断是否进入HOLD
@@ -25,11 +25,11 @@ Email: zyshine3@sjtu.edu.cn
 
 // PID defaults (占位！！需要进行参数整定)
 // Approach模式下 串级PID增益
-#define PID_Z_KP_APP   (0.4f)
-#define PID_Z_KI_APP   (0.02f)
+#define PID_Z_KP_APP   (0.2f)
+#define PID_Z_KI_APP   (0.08f)
 #define PID_Z_KD_APP   (0.0f)
-#define PID_V_KP_APP   (-1000.0f)
-#define PID_V_KI_APP   (-150.0f)
+#define PID_V_KP_APP   (-800.0f)
+#define PID_V_KI_APP   (-120.0f)
 #define PID_V_KD_APP   (0.0f)
 // Hold模式下 串级PID增益
 #define PID_Z_KP_HOLD  (0.4f)
@@ -62,7 +62,7 @@ Email: zyshine3@sjtu.edu.cn
 
 // 任务相关参数
 #define WATER_DETECT_DEPTH_THRESHOLD_M   (0.15f)   // 超过此深度认为已入水
-#define WATER_DETECT_TIMEOUT_MS          (20000u)  // 20s 超时
+#define WATER_DETECT_TIMEOUT_MS          (50000u)  // 20s 超时
 
 // 保深驻留与回收参数
 // 在进入 MISSION_DEPTH_HOLD 后持续该时长（且保持在预备带内），即认为已到位，进入驻留/省电阶段

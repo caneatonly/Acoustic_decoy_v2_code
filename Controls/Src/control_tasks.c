@@ -135,6 +135,29 @@ float ControlTasks_GetManualVref(void)
   return g_pid_manual_vref;
 }
 
+BaseType_t ControlTasks_SetTargetDepth(float depth_m)
+{
+  BaseType_t result = pdFAIL;
+
+  // Update controller target
+  if (xSemaphoreTake(g_depthCtrlMutex, DEPTH_CTRL_MUTEX_TIMEOUT) == pdPASS)
+  {
+    DepthCtrl_SetTarget(&g_depth_ctrl, depth_m);
+    result = pdPASS;
+    xSemaphoreGive(g_depthCtrlMutex);
+  }
+
+  // Update mission target (for consistency)
+  mission_status_t *status = Mission_LockStatus(pdMS_TO_TICKS(10));
+  if (status != NULL)
+  {
+    status->target_depth_m = depth_m;
+    Mission_UnlockStatus();
+  }
+
+  return result;
+}
+
 BaseType_t ControlTasks_UpdatePidGain(pid_loop_t loop, pid_mode_t mode, pid_term_t term, float value)
 {
   BaseType_t result = pdFAIL;
