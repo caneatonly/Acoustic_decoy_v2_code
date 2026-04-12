@@ -133,6 +133,16 @@ void IMU_UpdateAccel(float accelX, float accelY, float accelZ)
     g_imu_data.data_valid = true;
 }
 
+  // IMU角速度数据更新函数
+void IMU_UpdateGyro(float gyroX, float gyroY, float gyroZ)
+{
+    g_imu_data.gyroX = gyroX;
+    g_imu_data.gyroY = gyroY;
+    g_imu_data.gyroZ = gyroZ;
+    g_imu_data.timestamp = xTaskGetTickCount();
+    g_imu_data.data_valid = true;
+}
+
 void LEDstatus_on(void) {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET); // PA4 LED ON
 }

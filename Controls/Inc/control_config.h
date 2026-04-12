@@ -58,7 +58,7 @@ Email: zyshine3@sjtu.edu.cn
 #define SAFETY_PRESS_TIMEOUT_MS   (1500u)
 
 //状态上报间隔
-#define CTRL_STATUS_PUBLISH_MS    (1000u)
+#define CTRL_STATUS_PUBLISH_MS    (20u)
 
 // 任务相关参数
 #define WATER_DETECT_DEPTH_THRESHOLD_M   (0.15f)   // 超过此深度认为已入水

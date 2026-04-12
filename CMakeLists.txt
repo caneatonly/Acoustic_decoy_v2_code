@@ -30,7 +30,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 # Core project settings
 project(${CMAKE_PROJECT_NAME})
 
-
 # Enable CMake support for AM and C languages
 enable_language(C ASM)
 

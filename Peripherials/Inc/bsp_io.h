@@ -27,6 +27,9 @@ typedef struct {
     float accelX;           // X轴加速度 (m/s^2)
     float accelY;           // Y轴加速度 (m/s^2)
     float accelZ;           // Z轴加速度 (m/s^2)
+    float gyroX;           // X轴角速度 (度/s)
+    float gyroY;           // Y轴角速度 (度/s)
+    float gyroZ;           // Z轴角速度 (度/s)
     TickType_t timestamp;   // 数据时间戳 (FreeRTOS tick)
     bool data_valid;        // 数据有效性标志
 } IMU_Data_t;
@@ -40,7 +43,9 @@ void imuInit(void);
 
 // IMU相关
 void IMU_UpdateAngle(float angleX, float angleY, float angleZ);
+void IMU_UpdateGyro(float gyroX, float gyroY, float gyroZ);
 void IMU_UpdateAccel(float accelX, float accelY, float accelZ);
+
  
 // 12v外设总电源控制
 void power_on(void);

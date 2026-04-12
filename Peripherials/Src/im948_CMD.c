@@ -817,6 +817,7 @@ static void Cmd_RxUnpack(U8 *buf, U8 DLen)
             tmpX = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAngleSpeed; L += 2; Dbp("\tGX: %.3f\r\n", tmpX); // x角速度GX
             tmpY = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAngleSpeed; L += 2; Dbp("\tGY: %.3f\r\n", tmpY); // y角速度GY
             tmpZ = (S16)(((S16)buf[L+1]<<8) | buf[L]) * scaleAngleSpeed; L += 2; Dbp("\tGZ: %.3f\r\n", tmpZ); // z角速度GZ
+            IMU_UpdateGyro(tmpX, tmpY, tmpZ);
 #ifdef __Debug
             tmpAbs = sqrt(pow2(tmpX) + pow2(tmpY) + pow2(tmpZ));
             Dbp("\tG_abs: %.3f\r\n", tmpAbs); // 3轴合成的绝对值

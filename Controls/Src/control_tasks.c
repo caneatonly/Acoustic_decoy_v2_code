@@ -88,7 +88,7 @@ void Task_ImuProcess(void *argument)
     if (xQueueReceive(g_imuRxQueue, &block, portMAX_DELAY) == pdPASS)
     {
       IMU_ProcessBlock(&block);
-      while (xQueueReceive(g_imuRxQueue, &block, 0) == pdPASS)
+      while (xQueueReceive(g_imuRxQueue, &block, 0) == pdPASS) //一次性处理所有积压数据
       {
         IMU_ProcessBlock(&block);
       }
@@ -406,23 +406,23 @@ void Task_Telemetry(void *argument)
     //                (unsigned int)sample_count,
     //                window_seconds);
 
-    console_printf("Depth=%.2f,Depth_target=%.2f,err=%.3f,depth_err_avg=%.3f,abs=%.3f,rms=%.3f,max_abs=%.3f\r\n",
-                   depth_est, depth_target, depth_err,
-                   depth_err_avg, depth_err_avg_abs, depth_err_rms, depth_err_max_abs);
+    // console_printf("Depth=%.2f,Depth_target=%.2f,err=%.3f,depth_err_avg=%.3f,abs=%.3f,rms=%.3f,max_abs=%.3f\r\n",
+    //                depth_est, depth_target, depth_err,
+    //                depth_err_avg, depth_err_avg_abs, depth_err_rms, depth_err_max_abs);
 
-    console_printf("Velocity=%.3f,V_ref=%.3f,err=%.3f | avg=%.3f,abs=%.3fm,rms=%.3fm,max_abs=%.3fm\r\n",
-                   velocity_est, ctrl_vref, vel_err,
-                   vel_err_avg, vel_err_avg_abs, vel_err_rms, vel_err_max_abs);
+    // console_printf("Velocity=%.3f,V_ref=%.3f,err=%.3f | avg=%.3f,abs=%.3fm,rms=%.3fm,max_abs=%.3fm\r\n",
+    //                velocity_est, ctrl_vref, vel_err,
+    //                vel_err_avg, vel_err_avg_abs, vel_err_rms, vel_err_max_abs);
 
-    console_printf("PWM: now %d,avg=%.0f,min=%d,max=%d,sat=%.1f%% | vref_avg=%.3f\r\n",
-                   ctrl_pwm, pwm_avg, pwm_min, pwm_max, pwm_sat_pct, vref_avg);
+    // console_printf("PWM: now %d,avg=%.0f,min=%d,max=%d,sat=%.1f%% | vref_avg=%.3f\r\n",
+    //                ctrl_pwm, pwm_avg, pwm_min, pwm_max, pwm_sat_pct, vref_avg);
 
-    console_printf("Mission: state %d ctrl_mode %d motor %s valve %s balloon %d\r\n",
-                   (int)mission_snapshot.state,
-                   (int)mission_snapshot.ctrl_mode,
-                   mission_snapshot.motor_active ? "ON" : "OFF",
-                   mission_snapshot.valve_enable ? "ON" : "OFF",
-                   (int)balloon_state);
+    // console_printf("Mission: state %d ctrl_mode %d motor %s valve %s balloon %d\r\n",
+    //                (int)mission_snapshot.state,
+    //                (int)mission_snapshot.ctrl_mode,
+    //                mission_snapshot.motor_active ? "ON" : "OFF",
+    //                mission_snapshot.valve_enable ? "ON" : "OFF",
+    //                (int)balloon_state);
 
     // console_printf("Valve: duty %.2f p_bag %.2f p_water %.2f dPdt %.2f\r\n",
     //                valve_data.duty,
@@ -435,6 +435,10 @@ void Task_Telemetry(void *argument)
     //                imu->accelX, imu->accelY, imu->accelZ,
     //                ms5837->temperature, ms5837->depth, ms5837->pressure_water,
     //                baro->pressure_bag, baro->voltage_v, baro->raw);
+      console_printf("angleX=%.2f,angleY=%.2f,angleZ=%.2f,gyroX=%.2f,gyroY=%.2f,gyroZ=%.2f,time=%lu\r\n",
+                     imu->angleX, imu->angleY, imu->angleZ,
+                     imu->gyroX, imu->gyroY, imu->gyroZ,
+                     now_tick);
 
     vTaskDelayUntil(&xLastWakeTime, xPeriod);
   }

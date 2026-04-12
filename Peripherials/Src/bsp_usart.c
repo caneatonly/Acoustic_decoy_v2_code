@@ -284,10 +284,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
             // 忽略连续的 CR/LF 组合中的第二个
             if (uart1_rx_index > 0) {
                 uart1_data_ready = 1;
-            } else {
-                // 空行，忽略
             }
-        } else {
+        } else {// 正常数据进入缓冲区
             if (uart1_rx_index < (UART1_RX_BUFFER_SIZE - 1)) {
                 uart1_rx_buffer[uart1_rx_index++] = ch;
             } else {
